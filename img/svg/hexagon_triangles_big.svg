@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg baseProfile="tiny" height="700px" version="1.2" width="800px" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink"><defs />
+<polygon fill="blue" points="400,350 800.0,350.0 600.0,696.41" stroke="black" stroke-width="1" />
+<polygon fill="purple" points="400,350 600.0,696.41 200.0,696.41" stroke="black" stroke-width="1" />
+<polygon fill="red" points="400,350 200.0,696.41 0.0,350.0" stroke="black" stroke-width="1" />
+<polygon fill="orange" points="400,350 0.0,350.0 200.0,3.59" stroke="black" stroke-width="1" />
+<polygon fill="yellow" points="400,350 200.0,3.59 600.0,3.59" stroke="black" stroke-width="1" />
+<polygon fill="green" points="400,350 600.0,3.59 800.0,350.0" stroke="black" stroke-width="1" />
+
+</svg>

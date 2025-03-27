@@ -1,0 +1,362 @@
+/**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * vizia implementation : © <Hervé Dang> <herve.dang@gmail.com>
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ *
+ * vizia.css
+ *
+ * vizia stylesheet
+ *
+ */
+
+/*
+    This is the CSS stylesheet of your game User Interface.
+
+    Styles defined on this file will be applied to the HTML elements you define in your
+    HTML template (vizia_vizia.tpl), and to HTML elements you create dynamically
+    (in vizia.js).
+
+    Usually, you are using CSS to:
+
+    1°) define the overall layout of your game
+        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
+
+    2°) create your CSS-sprites:
+        All images of your games should be gathered into a small number of image files. Then, using
+        background-image and background-position CSS properties, you create HTML blocks that can
+        display these images correctly (see example below).
+
+    3°) ... anything else:
+        It is really easy to add and remove CSS classes dynamically from your Javascript with
+        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
+        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
+        very often, using CSS classes for the logic of your user interface allow you to do complex
+        thing easily.
+
+
+     Note: on the production platform, this file will be compressed and comments will be removed.
+           Consequently, don't hesitate to put as many comments as necessary.
+*/
+
+
+/* Note: you must not use any @import directive */
+
+
+/********* You can start writing your CSS below this line: **********/
+
+.debugOFF {
+    display: none;
+
+}
+
+.debugON {
+    display: block;
+    fill:  black;
+}
+
+
+#final_round {
+    background-color: #ffc0c0;
+    display: inline-block;
+    margin-left: 10px;
+    /* width:100%; */
+}
+
+/** Scrollable area **/
+
+#map_container {
+    position: relative;
+    left: 10%;
+    width: 90%;
+    height: 500px;
+    overflow: hidden;
+
+}
+
+#map_scrollable, #map_scrollable_oversurface {
+    position: absolute;
+}
+
+#map_surface {
+    position: absolute;
+    top: 0px;
+    left: 0%;
+    width: 100%;
+    height: 100%;
+    cursor: move;
+}
+
+
+
+/** Move arrows **/
+
+#movetop,#moveleft,#moveright,#movedown {
+    display: block;
+    position: absolute;
+    background-image: url('../../../img/common/arrows.png');
+    width: 32px;
+    height: 32px;
+}
+#wrapper_home {
+    left: 5px;
+    top: 10px;
+}
+#wrapper_full {
+    left: 5px;
+    top: 50px;
+}
+#wrapper_zoomin {
+    left: 45px;
+    top: 10px;
+}
+#wrapper_zoomout {
+    left: 45px;
+    top: 50px;
+}
+
+#movehome {
+    background: url('img/Home_icon_black.png');
+}
+#fullscreen {
+    background: url('img/fullscreen.png');
+}
+
+
+#movehome, #fullscreen, #zoomin, #zoomout {
+    position: absolute;
+    background-size: 100% auto;
+    margin: auto;
+    width: 24px;
+    height: 24px;
+    top: 4px;
+    left: 4px;
+}
+
+#zoomin {
+    background: url('img/zoom.png');
+    background-size: 200% auto;
+    background-position-y: 100%;
+    background-position-x: 0%;
+}
+#zoomout {
+    background: url('img/zoom.png');
+    background-size: 200% auto;
+    background-position-y: 100%;
+    background-position-x: 100%;
+}
+
+#wrapper_home, #wrapper_full, #wrapper_zoomin, #wrapper_zoomout {
+    display: block;
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+}
+#wrapper_home:hover, #wrapper_full:hover, #wrapper_zoomin:hover, #wrapper_zoomout:hover {
+    transform: scale( 1.2 );
+}
+
+#movetop {
+    top: 0px;
+    left: 50%;
+    background-position: 0px 32px;
+}
+#moveleft {
+    top: 50%;
+    left: 0px;
+    background-position: 32px 0px;
+}
+#moveright {
+    top: 50%;
+    right: 0px;
+    background-position: 0px 0px;
+}
+#movedown {
+    bottom: 0px;
+    left: 50%;
+    background-position: 32px 32px;
+}
+
+#carcafooter {
+    text-align: center;
+}
+
+#remainingblock {
+    position: absolute;
+    right: 0px;
+    top: 0px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+#remainingtiles {
+    font-weight: bold;
+}
+
+#tile_to_play {
+    display: inline-block;
+}
+
+
+#rules_warning {
+    display: none;
+    text-align: center;
+}
+
+
+
+/* player boards */
+
+#current_player_board {
+    position: relative;
+    top: 10px;
+    height: 100px;
+}
+
+#hand0 {
+    position: absolute;
+    top: 0px;
+    left: 85px;
+}
+
+#hand1 {
+    position: absolute;
+    top: 0px;
+    left: 140px;
+}
+
+#commonTile{
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 7%;
+    border: 2px solid blue;
+
+}
+
+#commonTile div{
+    margin-top: 10px;
+    margin-bottom: 10px;
+
+}
+
+
+#remain{
+    position: absolute;
+    top: 0px;
+    left: 10%;
+    width: 2%;
+    border: 2px solid red;
+
+}
+
+
+
+/** This is some extra stuff to extend the container **/
+
+#map_footer {
+    text-align: center;
+}
+
+
+
+
+
+
+
+.currentTile {
+    pointer-events: auto;
+}
+
+
+.playedTile div polygon {
+    stroke: white;
+    stroke-width: 10;
+    z-index: 0;
+
+}
+
+
+
+.place:hover{
+    border: 1px solid black;
+}
+
+.priority1:hover,.commonPlace:hover,.handPlace:hover{
+    border: 1px solid blue;
+}
+
+.priority2:hover,.commonTile:hover,.handTile:hover{
+    border: 1px solid green;
+}
+
+.token:hover{
+    border: 1px solid red;
+}
+
+.commonTile polygon{
+
+/*fill:red;
+    stroke: #00ffff;
+    stroke-width: 20;
+ */
+ }
+
+.handTile polygon{
+    stroke: #FFFf00;
+    stroke-width: 20;
+
+}
+
+
+.currentTile  polygon {
+
+    stroke: black !important;
+    stroke-width: 20;
+
+}
+
+.currentPlace  polygon {
+/*
+    stroke: black;
+    stroke-width: 20;
+*/
+}
+
+.playedTile  polygon {
+
+    stroke: white ;
+    stroke-width: 40;
+
+    stroke-opacity: 1;
+
+}
+
+.white {
+ border: 10px solid white;
+}
+
+.black {
+ border: 10px solid black;
+}
+
+.priority1{
+    z-index: 1;
+}
+
+.priority2{
+    z-index: 1;
+}
+
+.token{
+    position: absolute;
+    z-index: 4;
+}
+
+.map{
+    position: absolute;
+}

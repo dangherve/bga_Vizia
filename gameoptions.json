@@ -1,0 +1,73 @@
+{
+  "100": {
+    "name": "Multiple Game",
+    "values": {
+      "0": {
+        "name": "reduce game half of standard game"
+      },
+      "1": {
+        "name": "Standard game"
+      },
+      "2": {
+        "name": "use two games"
+      }
+    },
+    "default": 0
+  },
+  "101": {
+    "name": "Communal Tiles",
+    "values": {
+      "4": {
+        "name": "4"
+      },
+      "3": {
+        "name": "3"
+      }
+    }
+  },
+  "102": {
+    "name": "Group Bonus  No effect",
+    "values": {
+      "0": {
+        "name": "Disable"
+      },
+      "1": {
+        "name": "Enable"
+      }
+    }
+  },
+  "103": {
+    "name": "Triangle Bonus  No effect",
+    "values": {
+      "0": {
+        "name": "Disable"
+      },
+      "1": {
+        "name": "Enable"
+      }
+    }
+  },
+
+  "104": {
+    "name": "Capture  No effect",
+    "values": {
+      "0": {
+        "name": "Disable"
+      },
+      "1": {
+        "name": "Enable"
+      }
+    }
+  },
+  "105": {
+    "name": "Purchase  No effect",
+    "values": {
+      "0": {
+        "name": "Disable"
+      },
+      "1": {
+        "name": "Enable"
+      }
+    }
+  }
+}
