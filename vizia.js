@@ -14,8 +14,14 @@
  * In this file, you are describing the logic of your user interface, in Javascript language.
  *
  */
-//transform="rotate(`+rotate+`)" svg
-// css
+
+var isDebug = window.location.host == 'studio.boardgamearena.com' || window.location.hash.indexOf('debug') > -1;
+var debug = isDebug ? console.info.bind(window.console) : function() {};
+var error = isDebug ? console.error.bind(window.console) : function() {};
+
+var debugStatus = "debugOFF"
+var colorBlindStatus = "colorBLindOFF"
+var memoryHelpStatus = "memoryHelpOFF"
 
 const jstpl_triangle = (tpl) => `
 <div id="tile_${tpl.tile_id}" class="${tpl.class} ${tpl.mapClass}">
@@ -24,7 +30,9 @@ const jstpl_triangle = (tpl) => `
           points="${tpl.points[0][0]},${tpl.points[0][1]} ${tpl.points[1][0]},${tpl.points[1][1]} ${tpl.points[2][0]},${tpl.points[2][1]}"
           stroke="`+tpl.color+`" stroke-width=10 stroke-opacity="`+tpl.opacity+`"
           fill="`+tpl.color+`" fill-opacity="`+tpl.opacity+`" />
-        <text class="debug debugOFF" x="${tpl.coord[0]}" y="${tpl.coord[1]}" font-size="80" fill="${tpl.coord[2]}">${tpl.x}x${tpl.y}</text>
+        <text class="debug ${debugStatus} " x="${tpl.coord[0]}" y="${tpl.coord[1]-25}" font-size="60" fill="${tpl.coord[2]}">${tpl.tile_id}</text>
+        <text class="debug ${debugStatus} " x="${tpl.coord[0]}" y="${tpl.coord[1]+25}" font-size="60" fill="${tpl.coord[2]}">${tpl.x}x${tpl.y}</text>
+        <text class="colorBlind ${colorBlindStatus} " x="${tpl.coord[0]+25}" y="${tpl.coord[1]}" font-size="150" fill="${tpl.coord[2]}">${tpl.colorText}</text>
     </svg>
 </div>`;
 
@@ -50,20 +58,32 @@ define([
 function (dojo, declare) {
     return declare("bgagame.vizia", ebg.core.gamegui, {
         constructor: function(){
-            console.log('vizia constructor');
+            debug('vizia constructor');
 
             // Here, you can init the global variables of your user interface
             // Example:
             // this.myGlobalValue = 0;
+            this.colorSection = 1;
 
             this.tileColor = {
-                6: '#000000',
-                0: '#1976D2',//blue
-                1: '#9C27B0',//purple
-                2: '#D32F2F',//red
-                3: '#F57C00',//orange
-                4: '#FDD835', //yellow
-                5: '#388E3C',//green
+                0: {
+                    6: '#000000',
+                    0: '#1976D2',//blue
+                    1: '#9C27B0',//purple
+                    2: '#D32F2F',//red
+                    3: '#F57C00',//orange
+                    4: '#FDD835', //yellow
+                    5: '#388E3C',//green
+                },
+                1: {
+                    6: 'black',
+                    0: 'blue',
+                    1: 'purple',
+                    2: 'red',
+                    3: 'orange',
+                    4: 'yellow',
+                    5: 'green',
+                },
             };
 
             this.tileRotate = {
@@ -125,6 +145,16 @@ function (dojo, declare) {
             document.getElementById('game_play_area').insertAdjacentHTML('beforeend', `
                 <div id="commonTile" class="whiteblock"></div>
                 <div id="remain" class="whiteblock"></div>
+                <div id="memoryHelp" class="whiteblock">
+                    <svg height="200px" width="200px" >
+                        <polygon fill="${this.tileColor[this.colorSection][0]}" points="100,100 180.0,100.0 140.0,169.282" stroke="black" stroke-width="1" />
+                        <polygon fill="${this.tileColor[this.colorSection][1]}" points="100,100 140.0,169.282 60.0,169.282" stroke="black" stroke-width="1" />
+                        <polygon fill="${this.tileColor[this.colorSection][2]}" points="100,100 60.0,169.282 20.0,100.0" stroke="black" stroke-width="1" />
+                        <polygon fill="${this.tileColor[this.colorSection][3]}" points="100,100 20.0,100.0 60.0,30.718" stroke="black" stroke-width="1" />
+                        <polygon fill="${this.tileColor[this.colorSection][4]}" points="100,100 60.0,30.718 140.0,30.718" stroke="black" stroke-width="1" />
+                        <polygon fill="${this.tileColor[this.colorSection][5]}" points="100,100 140.0,30.718 180.0,100.0" stroke="black" stroke-width="1" />
+                    </svg>
+                </div>
 
                 <div id="map_container">
                     <div id="map_scrollable">
@@ -175,7 +205,9 @@ function (dojo, declare) {
                 tpl.coord=this.tileCoord[0];
                 tpl.mapClass=""
                 tpl.tile_size = this.tile_sizeW;
-                tpl.color=this.tileColor[tile.color];
+                tpl.color=this.tileColor[this.colorSection][tile.color];
+                tpl.colorText=tile.color;
+
                 tpl.opacity=1;
 
                 elementToAdd = jstpl_triangle( tpl )
@@ -206,13 +238,15 @@ function (dojo, declare) {
                 if(element.id != null){
                     tpl.tile_id=element.id;
                     tpl.class="boardTile";
-                    tpl.color=this.tileColor[element.color];
+                    tpl.color=this.tileColor[this.colorSection][element.color];
+                    tpl.colorText=element.color
                     tpl.opacity=1;
                 }else{
                     tpl.tile_id=this.tmpId;
                     this.tmpId++;
                     tpl.class="boardPlace";
-                    tpl.color=this.tileColor[6];
+                    tpl.color=this.tileColor[this.colorSection][6];
+                    tpl.colorText=6
                     tpl.opacity=0.2;
                     playable=true
                 }
@@ -237,7 +271,8 @@ try{
                         elementToAdd = jstpl_element_on_map( tpl )
                         $('map_scrollable_oversurface').innerHTML += elementToAdd;
 }catch(err){
-console.log("*** check dom ****")
+if(isDebug)
+alert("*** check dom ****")
 }
 
                     }
@@ -301,7 +336,8 @@ console.log("*** check dom ****")
 
                 try{
                     tpl.tile_id=hand[0].id;
-                    tpl.color=this.tileColor[hand[0].color];
+                    tpl.color=this.tileColor[this.colorSection][hand[0].color];
+                    tpl.colorText=hand[0].color;
                     tpl.opacity=1;
                     tpl.class="handTile";
 
@@ -311,7 +347,8 @@ console.log("*** check dom ****")
                 }catch(err){
                     tpl.tile_id=this.tmpId
                     this.tmpId++
-                    tpl.color=this.tileColor[6];
+                    tpl.color=this.tileColor[this.colorSection][6];
+                    tpl.colorText=6;
                     tpl.opacity=0.2;
                     tpl.class="handPlace";
 
@@ -331,7 +368,8 @@ console.log("*** check dom ****")
                     tpl.tile_id=this.tmpId
                     this.tmpId++
                     tpl.tile_id=hand[1].id;
-                    tpl.color=this.tileColor[hand[1].color];
+                    tpl.colorText=hand[1].color;
+                    tpl.color=this.tileColor[this.colorSection][hand[1].color];
                     tpl.opacity=1;
                     tpl.class="handTile";
 
@@ -341,7 +379,8 @@ console.log("*** check dom ****")
                 }catch(err){
                     tpl.tile_id=this.tmpId
                     this.tmpId++
-                    tpl.color=this.tileColor[6];
+                    tpl.color=this.tileColor[this.colorSection][6];
+                    tpl.colorText=6;
                     tpl.opacity=0.2;
                     tpl.class="handPlace";
 
@@ -350,6 +389,36 @@ console.log("*** check dom ****")
                 }
             }
 
+        },
+
+        onMemoryHelpChanged: function (pref_value) {
+
+            dojo.query('#memoryHelp').removeClass(memoryHelpStatus);
+
+            if( pref_value == 0 ){
+                memoryHelpStatus = "memoryHelpOFF"
+            }else{
+                memoryHelpStatus = "memoryHelpON"
+            }
+
+            dojo.query('#memoryHelp').addClass(memoryHelpStatus);
+        },
+
+        onColorBlindChanged: function (pref_value) {
+
+            dojo.query('.colorBlind').removeClass(colorBlindStatus);
+
+            if( pref_value == 0 ){
+                colorBlindStatus = "colorBlindOFF"
+            }else{
+                colorBlindStatus = "colorBlindON"
+            }
+
+            dojo.query('.colorBlind').addClass(colorBlindStatus);
+        },
+
+        onColorChanged: function (pref_value) {
+            this.colorSection = pref_value;
         },
 
         refreshHandler: function (){
@@ -368,9 +437,25 @@ console.log("*** check dom ****")
             this.connectClass('playedTile', 'onclick', 'onAction');
         },
 
+        onGameUserPreferenceChanged: function(pref_id, pref_value) {
+            switch (pref_id) {
+                case 100:
+                    this.onMemoryHelpChanged(pref_value)
+                    break;
+                case 101:
+                    this.onColorBlindChanged(pref_value)
+                    break;
+                case 102:
+                    this.onColorChanged(pref_value)
+                    break;
+            }
+        },
+
         setup: function( gamedatas )
         {
-            console.log( "Starting game setup" );
+            debug( "Starting game setup" );
+
+            this.onColorChanged(this.getGameUserPreference(102))
 
             this.playerId = Number(gamedatas.player_id);
 
@@ -395,7 +480,7 @@ console.log("*** check dom ****")
             this.setupNotifications();
 
             this.refreshHandler();
-            console.log( "Ending game setup" );
+            debug( "Ending game setup" );
         },
 
 
@@ -411,7 +496,7 @@ console.log("*** check dom ****")
         //
         onEnteringState: function( stateName, args )
         {
-            console.log( 'Entering state: '+stateName, args );
+            debug( 'Entering state: '+stateName, args );
 
             switch( stateName )
             {
@@ -437,7 +522,7 @@ console.log("*** check dom ****")
         //
         onLeavingState: function( stateName )
         {
-            console.log( 'Leaving state: '+stateName );
+            debug( 'Leaving state: '+stateName );
 
             switch( stateName )
             {
@@ -477,7 +562,7 @@ console.log("*** check dom ****")
         //
         onUpdateActionButtons: function( stateName, args )
         {
-            console.log( 'onUpdateActionButtons: '+stateName, args );
+            debug( 'onUpdateActionButtons: '+stateName, args );
 
             this.displayFinalRoundWarning();
 
@@ -489,13 +574,16 @@ console.log("*** check dom ****")
                     this.statusBar.addActionButton(_('Play'), () => this.onPlay(), { color: 'primary' });
                     this.statusBar.addActionButton(_('Reset '), () => this.onReset(), { color: 'red' });
 
-                    this.statusBar.addActionButton(_('debug on'), () => this.debugOn(), { color: 'green' });
-                    this.statusBar.addActionButton(_('debug off'), () => this.debugOff(), { color: 'cyan' });
+                    if(isDebug){
+                        this.statusBar.addActionButton(_('debug on'), () => this.debugOn(), { color: 'green' });
+                        this.statusBar.addActionButton(_('debug off'), () => this.debugOff(), { color: 'cyan' });
+                    }
 
-
-
+                    this.refreshHandler();
                     break;
                 }
+            }else{
+                this.disconnectAll();
             }
         },
 
@@ -576,7 +664,6 @@ console.log("*** check dom ****")
                 dojo.removeClass(playedTile, "playedTile")
                 dojo.addClass(playedTile, "handPlace")
 
-
             }else if  ((dojo.hasClass(playedTile,"handTile") && dojo.hasClass(place,"boardPlace"))){
                 this.playedTile[playedTile.id] = { x , y}
                 delete this.playerTile[playedTile.id]
@@ -649,6 +736,7 @@ console.log("*** check dom ****")
 
                 if(dojo.hasClass(place,"boardPlace")){
                     createPlace = true
+                    this.playerTile[playedTile.id] = { x, y }
                 }
 
                 tmpClasse = playedTile.className
@@ -657,8 +745,8 @@ console.log("*** check dom ****")
 
 
             }else{
-            console.log(playedTile.className)
-            console.log(place.className)
+            debug(playedTile.className)
+            debug(place.className)
 
             }
 
@@ -689,9 +777,11 @@ console.log("*** check dom ****")
 /*
 placeText.setAttribute("font-size",40)
 playedTileText.setAttribute("font-size",40)
-placeText.innerHTML = place.className
-playedTileText.innerHTML = playedTile.className
 */
+tmp=playedTileText.innerHTML
+playedTileText.innerHTML = placeText.innerHTML
+placeText.innerHTML = tmp
+
             if( createPlace ){
                 this.playedTile[place.id] = { x, y }
                 r = Math.abs(x+y)%2
@@ -714,7 +804,7 @@ playedTileText.innerHTML = playedTile.className
             this.current_tile = "";
 
             }else{
-                console.log("not tile selected "+x+" "+y)
+                debug("not tile selected "+x+" "+y)
             }
         },
 
@@ -735,17 +825,17 @@ playedTileText.innerHTML = playedTile.className
 
         onAction: function (evt){
             item = evt.currentTarget//.parentNode.parentNode
-console.log(item.className)
+debug(item.className)
             if( item.className.match("Place") ){
-console.log("place")
+debug("place")
                 this.selectPlace(item)
             }else if (item.className.match("Tile")){
-console.log("tile")
+debug("tile")
 
                 this.selectTile(item)
             }else{
-                console.log("************** error ***************")
-console.log(item)
+                debug("************** error ***************")
+debug(item)
             }
     },
 
@@ -794,9 +884,9 @@ console.log(item)
                 tilePlayer += id+";"
             }
 
-console.log(tilePlayed)
-console.log(tilePlayer)
-console.log(tileCommon)
+debug(tilePlayed)
+debug(tilePlayer)
+debug(tileCommon)
 
             this.bgaPerformAction('actPlay', {
                 tilePlayed: tilePlayed,
@@ -820,7 +910,7 @@ console.log(tileCommon)
         */
         setupNotifications: function()
         {
-            console.log( 'notifications subscriptions setup' );
+            debug( 'notifications subscriptions setup' );
 
             this.bgaSetupPromiseNotifications();
 
@@ -860,7 +950,7 @@ console.log(tileCommon)
 
 
         notif_debug: function(args) {
-            console.log(args)
+            debug(args)
         }
    });
 });

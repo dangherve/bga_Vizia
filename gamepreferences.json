@@ -1,1 +1,39 @@
-{}
+{
+  "100": {
+    "name": "Memory help ",
+    "values": {
+      "0": {
+        "name": "none"
+      },
+      "1": {
+        "name": "show"
+      }
+    },
+    "default": 0
+  },
+  "101": {
+    "name": "Color blind option",
+    "values": {
+      "0": {
+        "name": "none"
+      },
+      "1": {
+        "name": "number in triangle"
+      }
+    },
+    "default": 0
+  },
+  "102": {
+    "name": "Color set",
+    "needReload": true,
+    "values": {
+      "0": {
+        "name": "Color set 1"
+      },
+      "1": {
+        "name": "Color set 2"
+      }
+    },
+    "default": 0
+  }
+}

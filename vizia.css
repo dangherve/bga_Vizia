@@ -48,12 +48,12 @@
 
 /********* You can start writing your CSS below this line: **********/
 
-.debugOFF {
+.memoryHelpOFF, .colorBlindOFF,.debugOFF {
     display: none;
 
 }
 
-.debugON {
+.memoryHelpON, .colorBLindON, .debugON {
     display: block;
     fill:  black;
 }
@@ -254,7 +254,13 @@
 
 }
 
-
+#memoryHelp{
+    border: 2px solid green;
+    width: 200px;
+    position: absolute;
+    top: 0px;
+    left: 10%;
+}
 
 /** This is some extra stuff to extend the container **/
 
