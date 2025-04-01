@@ -230,10 +230,8 @@ foreach($debug as $debugTile){
                      'x' => $x,
                      'y' => $y];
 
-            $message="";
-
             $this->notifyAllPlayers(
-                'newToken',clienttranslate($message),
+                'newToken',clienttranslate($this->getActivePlayerName()." completed a wheel"),
                 [
                     'token' => $token,
                 ]
@@ -281,8 +279,10 @@ $this->dump("y",$y);
      *
      * @throws BgaUserException
      */
+
     public function actPlay(string $tilePlayed, string $tilePlayer, string $tileCommon): void
     {
+        $message=$this->getActivePlayerName().' play ';
 
         //need to play at leas one tile
         if(strlen($tilePlayed)==0){
@@ -330,8 +330,13 @@ $this->dump("y",$y);
 
                 $tiles[$tileId]["id"] = $tileId;
 
-                $tiles[$tileId]["color"] = $this->getUniqueValueFromDB("SELECT tile_color
+                $tileColor = $this->getUniqueValueFromDB("SELECT tile_color
                 FROM tile WHERE tile_id = ".$tileId);
+
+                $tiles[$tileId]["color"]=$tileColor;
+
+                $message.=COLORS[$tileColor]["name"]." tile ";
+
                 $this->CheckWhellsCompleted( $tileX, $tileY);
             }
         }
@@ -361,6 +366,7 @@ $this->dump("tile",$tile);
         }
 
         if(strlen($tilePlayer)!=0){
+            $message.= "and take ";
             $list_playerTile = explode(';',$tilePlayer);
             foreach ($list_playerTile as $tile){
                 if (strlen($tile)!=0){
@@ -373,8 +379,14 @@ $this->dump("tile",$tile);
 $this->trace("****************************************************************");
 $this->dump("sql",$sql);
                     static::DbQuery($sql);
+
+                $tileColor = $this->getUniqueValueFromDB("SELECT tile_color
+                FROM tile WHERE tile_id = ".$tileId);
+
+                $message.= COLORS[$tileColor]["name"]." ";
                 }
             }
+            $message.="to his reserve";
         }
 
         $placesFinal = array();
@@ -400,7 +412,6 @@ $this->trace("******************************************************************
 
 $this->dump("allTiles",$allTiles);
 
-        $message="";
         $this->notifyAllPlayers(
             'playedTile',clienttranslate($message),
             [
