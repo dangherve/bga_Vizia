@@ -20,7 +20,7 @@ var debug = isDebug ? console.info.bind(window.console) : function() {};
 var error = isDebug ? console.error.bind(window.console) : function() {};
 
 var debugStatus = "debugOFF"
-var colorBlindStatus = "colorBLindOFF"
+var colorBlindStatus = "colorBlindOFF"
 var memoryHelpStatus = "memoryHelpOFF"
 
 const jstpl_triangle = (tpl) => `
@@ -406,15 +406,15 @@ alert("*** check dom ****")
 
         onColorBlindChanged: function (pref_value) {
 
-            dojo.query('.colorBlind').removeClass(colorBlindStatus);
-
+            elementToChange = dojo.query('.colorBlind');
             if( pref_value == 0 ){
                 colorBlindStatus = "colorBlindOFF"
             }else{
                 colorBlindStatus = "colorBlindON"
             }
-
-            dojo.query('.colorBlind').addClass(colorBlindStatus);
+            for (i = 0 ; i < elementToChange.length; i++ ){
+                elementToChange[i].className.baseVal='colorBlind '+colorBlindStatus
+            }
         },
 
         onColorChanged: function (pref_value) {
@@ -578,7 +578,6 @@ alert("*** check dom ****")
                         this.statusBar.addActionButton(_('debug on'), () => this.debugOn(), { color: 'green' });
                         this.statusBar.addActionButton(_('debug off'), () => this.debugOff(), { color: 'cyan' });
                     }
-
                     this.refreshHandler();
                     break;
                 }

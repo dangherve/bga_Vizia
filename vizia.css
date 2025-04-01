@@ -48,12 +48,12 @@
 
 /********* You can start writing your CSS below this line: **********/
 
-.memoryHelpOFF, .colorBlindOFF,.debugOFF {
+.memoryHelpOFF, .colorBlindOFF, .debugOFF {
     display: none;
 
 }
 
-.memoryHelpON, .colorBLindON, .debugON {
+.memoryHelpON, .colorBlindON, .debugON {
     display: block;
     fill:  black;
 }
