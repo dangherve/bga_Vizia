@@ -13,6 +13,12 @@ CREATE TABLE IF NOT EXISTS `token` (
   `token_player` int(11) unsigned NOT NULL COMMENT 'player id',
   `board_token_x` int(11) COMMENT 'token position relative to origin',
   `board_token_y` int(11) COMMENT 'token position relative to origin',
+  `triangleDown` boolean COMMENT 'triangleDown',
+  `triangleUpLeft` boolean COMMENT 'triangleUpLeft',
+  `triangleDownLeft` boolean COMMENT 'triangleDownLeft',
+  `triangleUp` boolean COMMENT 'triangleUp',
+  `triangleDownRight` boolean COMMENT 'triangleDownRight',
+  `triangleUpRight` boolean COMMENT 'triangleUpRight',
   PRIMARY KEY (`token_id`),
   UNIQUE KEY (`board_token_x`,`board_token_y`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
