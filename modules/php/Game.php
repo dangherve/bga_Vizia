@@ -464,7 +464,7 @@ $this->dump("allTiles",$allTiles);
                 FROM tile
                 WHERE tile_location = 'Common'");
 
-        $tilesremain=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
+        $tilesRemain=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
 
         $tilesNotPlayed=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck' or tile_location = 'common' or tile_location = 'Player'");
 
