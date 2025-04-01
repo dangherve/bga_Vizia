@@ -148,11 +148,29 @@ function (dojo, declare) {
                 <div id="memoryHelp" class="whiteblock">
                     <svg height="200px" width="200px" >
                         <polygon fill="${this.tileColor[this.colorSection][0]}" points="100,100 180.0,100.0 140.0,169.282" stroke="black" stroke-width="1" />
+                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][0]}">
+                            ${tpl.colorText}
+                        </text>
                         <polygon fill="${this.tileColor[this.colorSection][1]}" points="100,100 140.0,169.282 60.0,169.282" stroke="black" stroke-width="1" />
+                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][1]}">
+                            ${tpl.colorText}
+                        </text>
                         <polygon fill="${this.tileColor[this.colorSection][2]}" points="100,100 60.0,169.282 20.0,100.0" stroke="black" stroke-width="1" />
+                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][2]}">
+                            ${tpl.colorText}
+                        </text>
                         <polygon fill="${this.tileColor[this.colorSection][3]}" points="100,100 20.0,100.0 60.0,30.718" stroke="black" stroke-width="1" />
+                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][3]}">
+                            ${tpl.colorText}
+                        </text>
                         <polygon fill="${this.tileColor[this.colorSection][4]}" points="100,100 60.0,30.718 140.0,30.718" stroke="black" stroke-width="1" />
+                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][4]}">
+                            ${tpl.colorText}
+                        </text>
                         <polygon fill="${this.tileColor[this.colorSection][5]}" points="100,100 140.0,30.718 180.0,100.0" stroke="black" stroke-width="1" />
+                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][5]}">
+                            ${tpl.colorText}
+                        </text>
                     </svg>
                 </div>
 
