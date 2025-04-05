@@ -40,7 +40,8 @@ const jstpl_triangle = (tpl) => `
 const jstpl_circle = (tpl) => `
 <div class='token' style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
 <svg  width='${tpl.token_size}' height='${tpl.token_size}' >
-<circle r="${tpl.token_size/2-5}" cx="${tpl.token_size/2}" cy="${tpl.token_size/2}" fill="${tpl.color}" />
+<circle r="${tpl.token_size/2-5}" cx="${tpl.token_size/2}" cy="${tpl.token_size/2}" opacity="1" fill="${tpl.color}" />
+<text style="display: none; z-index: 10" x="10" y="40" font-size="30" fill="black">${tpl.x}x${tpl.y}</text>
 </svg>
 </div>`;
 
@@ -148,28 +149,28 @@ function (dojo, declare) {
                 <div id="memoryHelp" class="whiteblock">
                     <svg height="200px" width="200px" >
                         <polygon fill="${this.tileColor[this.colorSection][0]}" points="100,100 180.0,100.0 140.0,169.282" stroke="black" stroke-width="1" />
-                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][0]}">
-                            ${tpl.colorText}
+                        <text class="colorBlind ${colorBlindStatus} " x="130" y="140" font-size="50" fill="black">
+                            0
                         </text>
                         <polygon fill="${this.tileColor[this.colorSection][1]}" points="100,100 140.0,169.282 60.0,169.282" stroke="black" stroke-width="1" />
-                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][1]}">
-                            ${tpl.colorText}
+                        <text class="colorBlind ${colorBlindStatus} " x="90" y="160" font-size="50" fill="black">
+                            1
                         </text>
                         <polygon fill="${this.tileColor[this.colorSection][2]}" points="100,100 60.0,169.282 20.0,100.0" stroke="black" stroke-width="1" />
-                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][2]}">
-                            ${tpl.colorText}
+                        <text class="colorBlind ${colorBlindStatus} " x="45" y="140" font-size="50" fill="black">
+                            2
                         </text>
                         <polygon fill="${this.tileColor[this.colorSection][3]}" points="100,100 20.0,100.0 60.0,30.718" stroke="black" stroke-width="1" />
-                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][3]}">
-                            ${tpl.colorText}
+                        <text class="colorBlind ${colorBlindStatus} " x="45" y="90" font-size="50" fill="black">
+                            3
                         </text>
                         <polygon fill="${this.tileColor[this.colorSection][4]}" points="100,100 60.0,30.718 140.0,30.718" stroke="black" stroke-width="1" />
-                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][4]}">
-                            ${tpl.colorText}
+                        <text class="colorBlind ${colorBlindStatus} " x="85" y="70" font-size="50" fill="black">
+                            4
                         </text>
                         <polygon fill="${this.tileColor[this.colorSection][5]}" points="100,100 140.0,30.718 180.0,100.0" stroke="black" stroke-width="1" />
-                        <text class="colorBlind ${colorBlindStatus} " x="25" y="25" font-size="150" fill="${this.tileColor[this.colorSection][5]}">
-                            ${tpl.colorText}
+                        <text class="colorBlind ${colorBlindStatus} " x="130" y="90" font-size="50" fill="black">
+                            5
                         </text>
                     </svg>
                 </div>
@@ -245,7 +246,7 @@ function (dojo, declare) {
                 tpl.x=element.x;
                 tpl.y=element.y;
 
-                orientation = Math.abs(Number(element.x)+Number(element.y))%2
+                var orientation = (Math.abs(Number(element.x)+Number(element.y))%2)
 
                 tpl.points=this.tileRotate[orientation]
                 tpl.coord=this.tileCoord[orientation]
