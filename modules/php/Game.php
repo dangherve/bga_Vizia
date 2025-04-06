@@ -271,6 +271,50 @@ $this->dump("y",$y);
         }
     }
 
+
+//probably a better way to do it
+    public function CheckAdjacentToken( $token){
+        $x=$token["x"];
+        $y=$token["y"];
+
+        $sql="SELECT token_id, tileGroup
+            FROM token WHERE
+            token_player = ".$token["token_player"]." and (
+            (board_token_x = ".($x-1)." and board_token_y = ".($y-1).") or
+            (board_token_x = ".($x+1)." and board_token_y = ".($y-1).") or
+            (board_token_x = ".($x-2)." and board_token_y = ".($y).") or
+            (board_token_x = ".($x)." and board_token_y = ".($y).") or
+            (board_token_x = ".($x+2)." and board_token_y = ".($y).") or
+            (board_token_x = ".($x-1)." and board_token_y = ".($y+1).") or
+            (board_token_x = ".($x+1)." and board_token_y = ".($y+1)."))";
+
+        $tokens = $this->getCollectionFromDb($sql);
+
+        if  ($token["tileGroup"] == null) {
+            $groupID=$token["id"];
+        }else{
+            $groupID=$token["tileGroup"];
+        }
+
+        foreach( $tokens as $token2 ){
+            if  ($token2["tileGroup"] != null) {
+                $sql="UPDATE token SET tileGroup = ".$groupID."
+                    WHERE tileGroup = ".$token2["tileGroup"];
+
+                static::DbQuery($sql);
+
+                $groupID=$token2["tileGroup"];
+            }else{
+                $sql="UPDATE token SET tileGroup = ".$groupID."
+                        WHERE token_id = ".$token2["token_id"];
+
+                static::DbQuery($sql);
+            }
+        }
+
+    }
+
+
     /**
      * Player action, example content.
      *
@@ -538,7 +582,7 @@ $this->trace("**********continue");
             }
         }
 
-        if($token["triangleUp"] == 0){
+        if(!$token["triangleUp"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
                     FROM token
                     WHERE token_player =".$token["token_player"]." and
@@ -557,7 +601,7 @@ $this->trace("**********continue");
             }
         }
 
-        if($token["triangleUpLeft"] == 0){
+        if(!$token["triangleUpLeft"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
                     FROM token
                     WHERE token_player =".$token["token_player"]." and
@@ -576,7 +620,7 @@ $this->trace("**********continue");
             }
         }
 
-        if($token["triangleDownLeft"] == 0){
+        if(!$token["triangleDownLeft"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
                     FROM token
                     WHERE token_player =".$token["token_player"]." and
@@ -595,7 +639,7 @@ $this->trace("**********continue");
             }
         }
 
-      if($token["triangleUpRight"] == 0){
+      if(!$token["triangleUpRight"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
                     FROM token
                     WHERE token_player =".$token["token_player"]." and
@@ -614,7 +658,7 @@ $this->trace("**********continue");
             }
         }
 
-        if($token["triangleDownRight"] == 0){
+        if(!$token["triangleDownRight"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
                     FROM token
                     WHERE token_player =".$token["token_player"]." and
@@ -643,6 +687,10 @@ $this->trace("**********continue");
 
         $points = [['str' => "points", 'args' => []]];
         $pointsTriange = [['str' => "points triangle", 'args' => []]];
+        $pointsTriange2 = [['str' => "points triangle2", 'args' => []]];
+        $pointsGroup = [['str' => "points group", 'args' => []]];
+        $pointsTotal = [['str' => "points total", 'args' => []]];
+
 
         $nameRow = [''];
         foreach ($players as $player_id => $player) {
@@ -654,12 +702,12 @@ $this->trace("**********continue");
 
             $points[$player_id]=0;
             $pointsTriange[$player_id]=0;
+            $pointsGroup[$player_id]=0;
+            $pointsTotal[$player_id]=0;
+
         }
 
-        $tokens = self::getCollectionFromDb("SELECT token_id as id,token_player,
-                board_token_x as x , board_token_y as y,
-                triangleDown, triangleUpLeft, triangleDownLeft,
-                triangleUp, triangleDownRight, triangleUpRight
+        $tokens = self::getCollectionFromDb("SELECT token_id as id,token_player
                 FROM token");
 
         foreach( $tokens as $token ){
@@ -685,22 +733,65 @@ $this->dump("nb",sizeof($colors) );
                  $this->trace( "Error calculation point error" );
             }
 
-            if($this->getGameStateValue('triangleBonus')){
-$this->dump("*************************token",$token);
-                $pointsTriange[$token["token_player"]]+=$this->checkToken($token);
+            if($this->getGameStateValue('triangleBonus') == 1){
+
+                $tokenUpdated = self::getCollectionFromDb("SELECT token_id as id,token_player,
+                board_token_x as x , board_token_y as y,
+                triangleDown, triangleUpLeft, triangleDownLeft,
+                triangleUp, triangleDownRight, triangleUpRight
+                FROM token WHERE token_id = ".$token["id"]);
+
+                $pointsTriange[$token["token_player"]]+=$this->checkToken($tokenUpdated[$token["id"]]);
             }
+
+            if($this->getGameStateValue('groupBonus') == 1){
+//
+                $tokenUpdated = self::getCollectionFromDb("SELECT token_id as id,token_player,
+                board_token_x as x , board_token_y as y, tileGroup
+                FROM token WHERE token_id = ".$token["id"]);
+
+                $this->CheckAdjacentToken($tokenUpdated[$token["id"]]);
+            }
+
 
         }
 
 
-            if($this->getGameStateValue('groupBonus')){
+        foreach ($players as $player_id => $player) {
+            $pointsTriange2[$player_id]=
+                    (self::getUniqueValueFromDB("SELECT count(token_id)
+                    FROM token
+                    WHERE token_player =".$player_id." and
+                    triangleDown = 1")+
+                    self::getUniqueValueFromDB("SELECT count(token_id)
+                    FROM token
+                    WHERE token_player =".$player_id." and
+                    triangleUp = 1"))
+                    *2;
 
-            }
+            $pointsGroup[$player_id]=self::getUniqueValueFromDB("
+                    SELECT max(count) FROM (
+                        SELECT count(token_id) as count
+                        FROM token
+                        WHERE token_player =".$player_id."
+                        GROUP BY tileGroup) as tmp");
+
+
+            $pointsTotal[$player_id]=
+                $points[$player_id]+
+                $pointsTriange[$player_id]+
+                $pointsGroup[$player_id];
+        }
 
         $table = [$nameRow,$points];
             if($this->getGameStateValue('triangleBonus')){
                 $table[] = $pointsTriange;
             }
+            if($this->getGameStateValue('groupBonus') == 1){
+                $table[] = $pointsGroup;
+            }
+
+        $table[]=$pointsTotal;
 
         $this->notifyAllPlayers("tableWindow", clienttranslate(""), [
             "id" => 'finalScoring',
@@ -763,7 +854,7 @@ $this->dump("hand",$result["hand"]);
                 FROM tile
                 WHERE tile_location = 'Board'");
 
-        $result["token"] = self::getObjectListFromDB("SELECT token_id id,board_token_x x,board_token_y y, token_player player
+        $result["token"] = self::getObjectListFromDB("SELECT token_id id,board_token_x x,board_token_y y, token_player player, tileGroup
                 FROM token");
 
         $result["tilesremain"]=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
@@ -890,12 +981,14 @@ $this->dump("hand",$result["hand"]);
         $dbres = self::DbQuery("SELECT token_id as id, token_player,
                 board_token_x as x , board_token_y as y,
                 triangleDown, triangleUpLeft, triangleDownLeft,
-                triangleUp, triangleDownRight, triangleUpRight
+                triangleUp, triangleDownRight, triangleUpRight, tileGroup
                 FROM token
                 WHERE board_token_x = ".$x." and board_token_y = ".$y);
 
         $token = mysql_fetch_assoc( $dbres );
         $res=$this->checkToken($token);
+
+        $this->CheckAdjacentToken($token);
 
         $message="resultat ".$res;
         $this->notifyAllPlayers(
@@ -907,13 +1000,9 @@ $this->dump("hand",$result["hand"]);
     }
 
 
-    public function debug_testTilePlacement() {
-        $this->calculateScore();
-    }
-
 
     public function debug_score() {
-        $this->calculateScore();
+        $this->calculateScore(true);
     }
 
     public function debug_commonTile() {
@@ -940,7 +1029,7 @@ $this->dump("hand",$result["hand"]);
     }
 
     public function debug_emptyBoard() {
-            // Remove it from the deck
+            // Remove it from the board
             static::DbQuery( "DELETE FROM tile where tile_location = 'board'" );
     }
 
@@ -1027,6 +1116,25 @@ $this->dump("hand",$result["hand"]);
         return $tiles;
     }
 
+ function upgradeTableDb( $from_version ){
+
+ if( $from_version <= 2503302032 ){ // where your CURRENT version in production has number YYMMDD-HHMM
+
+           // You DB schema update request.
+           // Note: all tables names should be prefixed by "DBPREFIX_" to be compatible with the applyDbUpgradeToAllDB method you should use below
+           $sql = "ALTER TABLE token
+                ADD  `triangleDown` boolean,
+                ADD  `triangleUpLeft` boolean,
+                ADD  `triangleDownLeft` boolean,
+                ADD  `triangleUp` boolean,
+                ADD  `triangleDownRight` boolean,
+                ADD  `triangleUpRight` boolean,
+                ADD  `tileGroup` int(10);";
+
+           // The method below is applying your DB schema update request to all tables, including the BGA framework utility tables like "zz_replayXXXX" or "zz_savepointXXXX".
+           // You should really use this request, in conjunction with "DBPREFIX_" in your $sql, so ALL tables are updated. All utility tables MUST have the same schema than the main table, otherwise the game may be blocked.
+           self::applyDbUpgradeToAllDB( $sql );
+ }}
 
     /**
      * This method is called each time it is the turn of a player who has quit the game (= "zombie" player).
