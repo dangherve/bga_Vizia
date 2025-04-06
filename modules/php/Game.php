@@ -373,6 +373,10 @@ $this->dump("tile",$tile);
 
                     $tileId = explode('_',$tile)[1];
 
+                    if(array_key_exists($tileId,$tiles)){
+                        throw new \BgaUserException(self::_("error tile both in player and played"), true);
+                    }
+
                     $sql="UPDATE tile SET tile_location = 'Player',
                         tile_location_arg = ".$this->getActivePlayerId()."
                         WHERE tile_id = ".$tileId;
@@ -640,6 +644,7 @@ $this->trace("**********continue");
         $points = [['str' => "points", 'args' => []]];
         $pointsTriange = [['str' => "points triangle", 'args' => []]];
 
+        $nameRow = [''];
         foreach ($players as $player_id => $player) {
             $nameRow[$player_id] = [
                 'str' => '${player_name}',
@@ -692,7 +697,10 @@ $this->dump("*************************token",$token);
 
             }
 
-        $table = [$nameRow,$points,$pointsTriange];
+        $table = [$nameRow,$points];
+            if($this->getGameStateValue('triangleBonus')){
+                $table[] = $pointsTriange;
+            }
 
         $this->notifyAllPlayers("tableWindow", clienttranslate(""), [
             "id" => 'finalScoring',

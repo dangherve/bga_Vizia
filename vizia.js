@@ -754,7 +754,7 @@ alert("*** check dom ****")
 
                 if(dojo.hasClass(place,"boardPlace")){
                     createPlace = true
-                    this.playerTile[playedTile.id] = { x, y }
+                    this.playedTile[playedTile.id] = { x, y }
                 }
 
                 tmpClasse = playedTile.className
@@ -894,7 +894,6 @@ debug(item)
                 tile=this.playedTile[id]
                 tilePlayed += id+","+tile.x+","+tile.y+";"
             }
-
 
             tilePlayer = ""
             for (var id in this.playerTile ) {
