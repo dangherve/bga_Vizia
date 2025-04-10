@@ -38,7 +38,7 @@ const jstpl_triangle = (tpl) => `
 
 
 const jstpl_circle = (tpl) => `
-<div class='token' id="token_${tpl.id}" style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
+<div class='token ${tpl.player}' id="token_${tpl.id}" style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
 <svg  width='${tpl.token_size}' height='${tpl.token_size}' >
 <circle r="${tpl.token_size/2-5}" cx="${tpl.token_size/2}" cy="${tpl.token_size/2}" opacity="1" fill="${tpl.color}" />
 <text style="display: none; z-index: 10" x="10" y="40" font-size="30" fill="black">${tpl.x}x${tpl.y}</text>
@@ -113,18 +113,23 @@ function (dojo, declare) {
             this.tile_sizeWPrivate = 400/5;
 
             this.current_tile = "";
+            this.current_token = "";
+
             this.auto_scroll = true;
             this.players = null;
 
             this.playedTile = {}
             this.playerTile = {}
             this.commonTile = {}
+            this.token =  {}
 
             this.handler = {}
 
             this.final_round = 0
 
             this.tmpId=1000;
+
+            this.purchase=0;
         },
 
         /*
@@ -304,7 +309,7 @@ alert("*** check dom ****")
 
         },
 
-        token: function (tokens){
+        addToken: function (tokens){
 
             for( i in tokens ){
                 var token = tokens[i];
@@ -319,6 +324,7 @@ alert("*** check dom ****")
                     tpl.class="token";
                     tpl.color="#"+this.players[token.player].color ;
                     tpl.id=token.id
+                    tpl.player=token.player
 
                     document.getElementById("place_"+token.x+"x"+token.y).innerHTML += jstpl_circle(tpl);
 
@@ -444,6 +450,14 @@ alert("*** check dom ****")
             this.colorSection = pref_value;
         },
 
+        updatePurchasableTiles: function(tiles){
+            dojo.query( ".purchasableTile" ).removeClass("purchasableTile");
+            for( i in tiles ){
+                dojo.addClass("tile_"+tiles[i],"purchasableTile");
+            }
+            this.refreshHandler();
+        },
+
         refreshHandler: function (){
 
             this.disconnectAll();
@@ -455,7 +469,12 @@ alert("*** check dom ****")
             this.connectClass('handPlace', 'onclick', 'onAction');
 
 //can not be click default rule
-//            this.connectClass('boardTile', 'onclick', 'onAction');
+            if( this.purchase ==1 ){
+                this.connectClass('purchasableTile', 'onclick', 'onAction');
+                this.connectClass('purchasedTile', 'onclick', 'onAction');
+                this.connectClass(this.playerId , 'onclick', 'onAction');
+            }
+
             this.connectClass('boardPlace', 'onclick', 'onAction');
             this.connectClass('playedTile', 'onclick', 'onAction');
         },
@@ -480,6 +499,9 @@ alert("*** check dom ****")
 
             this.onColorChanged(this.getGameUserPreference(102))
 
+            this.purchase = gamedatas.purchase
+
+
             this.playerId = Number(gamedatas.player_id);
 
             this.players = gamedatas.players;
@@ -492,7 +514,9 @@ alert("*** check dom ****")
             this.addElement(gamedatas.places);
             this.addElement(gamedatas.tiles);
 
-            this.token(gamedatas.token);
+            this.updatePurchasableTiles(gamedatas.purchasableTiles)
+
+            this.addToken(gamedatas.token);
 
             this.final_round=gamedatas.final_round
             this.displayFinalRoundWarning();
@@ -726,6 +750,11 @@ alert("*** check dom ****")
 
             }else if  ((dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"commonPlace"))){
 
+                if(!dojo.hasClass(playedTile,"purchasedTile")){
+                    this.showMessage(_('purchased tile need to stay on board'), 'error');
+                    return
+                }
+
                 delete this.playedTile[playedTile.id]
 
                 dojo.removeClass(place, "commonPlace")
@@ -736,6 +765,11 @@ alert("*** check dom ****")
                 dojo.addClass(playedTile, "boardPlace")
 
             }else if  ((dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"handPlace"))){
+
+                if(!dojo.hasClass(playedTile,"purchasedTile")){
+                    this.showMessage(_('purchased tile need to stay on board'), 'error');
+                    return
+                }
 
                     delete this.playedTile[playedTile.id]
 
@@ -844,18 +878,59 @@ placeText.innerHTML = tmp
             //this.updatePlaces();
         },
 
+        // Change current tile
+        selectToken: function( token )
+        {
 
+            dojo.query( ".currentToken" ).removeClass("currentToken");
+
+            this.current_token = token.id;
+debug(token)
+            dojo.query(token).addClass("currentToken");  // Ex: "handtile2" => 2
+
+            //this.updatePlaces();
+        },
+
+
+        buyTile: function (tile){
+            currentToken = $(this.current_token);
+            if (currentToken != null){
+                currentToken.remove();
+                dojo.query(tile).removeClass("purchasableTile");
+                dojo.query(tile).addClass("currentTile");
+                dojo.query(tile).addClass("playedTile");
+
+                placeId=tile.parentNode.id
+                id=tile.id//.split("_")[1]
+
+                this.current_tile = id;
+                x = Number(placeId.split("_")[1].split("x")[0]);
+                y = Number(placeId.split("x")[1]);
+
+                this.playedTile[id] = { x, y }
+
+                tokenId=this.current_token.split("_")[1]
+
+                this.token[tokenId]={id}
+
+                this.refreshHandler();
+
+            }else{
+                debug("not token selected")
+            }
+        },
 
         onAction: function (evt){
             item = evt.currentTarget//.parentNode.parentNode
 debug(item.className)
             if( item.className.match("Place") ){
-debug("place")
                 this.selectPlace(item)
+            }else if (item.className.match("purchasableTile")){
+                this.buyTile(item)
             }else if (item.className.match("Tile")){
-debug("tile")
-
                 this.selectTile(item)
+            }else if (item.className.match("token")){
+                this.selectToken(item)
             }else{
                 debug("************** error ***************")
 debug(item)
@@ -906,6 +981,14 @@ debug(item)
                 tilePlayer += id+";"
             }
 
+            tokenSpent = ""
+            for (var id in this.token ) {
+                token=this.token[id]
+                tokenSpent += id+","+token.id+";"
+            }
+
+
+
 debug(tilePlayed)
 debug(tilePlayer)
 debug(tileCommon)
@@ -913,7 +996,8 @@ debug(tileCommon)
             this.bgaPerformAction('actPlay', {
                 tilePlayed: tilePlayed,
                 tilePlayer: tilePlayer,
-                tileCommon: tileCommon
+                tileCommon: tileCommon,
+                tokenSpent: tokenSpent
             });
 
         },
@@ -949,13 +1033,12 @@ debug(tileCommon)
                 this.playedTile = {};
                 this.playerTile = {};
                 this.commonTile = {};
-
-
+                this.tokenSpent = {};
             }
         },
 
         notif_newToken: function(args) {
-            this.token(args.token);
+            this.addToken(args.token);
         },
 
         notif_captureToken: function(args) {
@@ -963,10 +1046,38 @@ console.log(args)
             if( args.token[0].id != -1){
                 document.getElementById("token_"+args.token[0].id).getElementsByTagName("svg")[0].getElementsByTagName("circle")[0].setAttribute("fill","#"+this.players[args.token[0].player].color)
             }else{
-                this.token(args.token);
+                this.addToken(args.token);
             }
         },
 
+        notif_getPurchasableTiles: function(args) {
+            this.updatePurchasableTiles(args);
+        },
+
+        notif_purchased: function (args){
+debug("***Purchased****")
+
+            if(this.playerId != args.player_id){
+                var placeToAdd = []
+                for( i in args.tileToRemove ){
+                    place=$(args.tileToRemove[i]).parentNode
+                    x = Number(place.id.split("_")[1].split("x")[0]);
+                    y = Number(place.id.split("x")[1]);
+
+                    placeToAdd[i]={ x, y }
+                    place.remove();
+
+                    $((args.tokenToRemove[i])).remove();
+
+                }
+                this.addElement(placeToAdd);
+
+            }else{
+            }
+
+debug("***END****")
+
+        },
 
         notif_nextPlayer: function(args) {
             this.CommonTile(args.commonTile)

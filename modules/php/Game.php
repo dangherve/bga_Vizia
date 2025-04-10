@@ -412,7 +412,7 @@ $this->trace("******DONE*********");
      * @throws BgaUserException
      */
 
-    public function actPlay(string $tilePlayed, string $tilePlayer, string $tileCommon): void
+    public function actPlay(string $tilePlayed, string $tilePlayer, string $tileCommon, string $tokenSpent): void
     {
         $message=$this->getActivePlayerName().' play ';
 
@@ -539,15 +539,38 @@ $this->dump("sql",$sql);
             }
         }
 
+        if(strlen($tokenSpent)!=0){
 
-        //table
-        $allTiles= self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
-                FROM tile
-                WHERE tile_location = 'Board'");
+            if (self::getGameStateValue('purchase') ==0 ){
+                throw new \BgaUserException(self::_("purchased tile is not permited for this game"), true);
+            }
 
-$this->trace("*******************************************************************");
+            $list_token = explode(';',$tokenSpent);
+            $tokenToRemove=[];
+            $tileToRemove=[];
 
-$this->dump("allTiles",$allTiles);
+            foreach ($list_token as $token){
+                if (strlen($token)!=0){
+                    $data  = explode(',',$token);
+                    $tokenToRemove[]="token_".$data[0];
+                    $tileToRemove[]=$data[1];
+
+                     self::DbQuery(sprintf("UPDATE token SET token_player = NULL  WHERE token_id = '%s'", $data[0]));
+
+
+                }
+            }
+
+            $this->notifyAllPlayers(
+            'purchased',clienttranslate($this->getActivePlayerName()." bought tile "),
+            [
+                'player_id' => $this->getActivePlayerId(),
+                'tileToRemove' => $tileToRemove,
+                'tokenToRemove' => $tokenToRemove,
+            ]
+            );
+
+        }
 
         $this->notifyAllPlayers(
             'playedTile',clienttranslate($message),
@@ -558,6 +581,13 @@ $this->dump("allTiles",$allTiles);
             ]
         );
 
+        if (self::getGameStateValue('purchase') ==1 ){
+            $purchasableTile=$this->getPurchasableTiles();
+
+            $this->notifyAllPlayers(
+                'getPurchasableTiles',"",$purchasableTile
+                );
+        }
 
         if( count($this->token) != 0)
         $this->notifyAllPlayers(
@@ -919,13 +949,98 @@ $this->dump("nb",sizeof($colors) );
             "closing" => clienttranslate("Close"),
         ]);
 
-        foreach ($players as $player_id => $player) {
-            $pointSum=$points[$player_id];
-            self::DbQuery(sprintf("UPDATE player SET player_score = player_score + %d WHERE player_id = '%s'", $pointSum, $player_id));
-        }
+        $this->gamestate->nextState("endGame");
+    }
+    public function debug_getPurchasableTiles(){
+        $test=$this->getPurchasableTiles();
 
+        $this->notifyAllPlayers(
+            'getPurchasableTiles',"",$test
+            );
+
+    }
+
+    public function getPurchasableTiles(): array {
+        $purchasableTiles=[];
+        if (self::getGameStateValue('purchase') ==1 ){
+            $table_size=self::getObjectFromDB("SELECT
+                max( board_tile_x ) as xMax,
+                min( board_tile_x ) as xMin,
+                max( board_tile_y ) as yMax,
+                min( board_tile_y ) as yMin
+                FROM tile WHERE tile_location = 'Board'",true);
+
+            $result["tiles"] = self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
+                FROM tile
+                WHERE tile_location = 'Board'");
+
+            $xMin = $table_size["xMin"]-1;
+            $xMax = $table_size["xMax"]+1;
+            $yMin = $table_size["yMin"]-1;
+            $yMax = $table_size["yMax"]+1;
+/*
+$size=$xMin." ".$xMax." ".$yMin." ".$yMax;
+$this->dump("size",$size);
+*/
+
+            for($i=$xMin;$i<=$xMax;$i++){
+                for($j=$yMin;$j<=$yMax;$j++){
+                 $tilesOnBoard[$i][$j]["empty"]=1;
+                }
+            }
+
+            foreach ($result["tiles"] as $tile) {
+                $x=$tile['x'];
+                $y=$tile['y'];
+
+                $tilesOnBoard[$x][$y]["empty"]=0;
+                $tilesOnBoard[$x][$y]["id"]=$tile['id'];
+            }
+            $tilesOnBoardString="***************************\n";
+            for($i=$xMin;$i<$xMax;$i++){
+                $tilesOnBoardString.="\t\t".$i;
+            }
+             $tilesOnBoardString.="\n\n";
+
+            for($j=$yMin;$j<=$yMax;$j++){
+                $tilesOnBoardString.=$j."\t";
+                for($i=$xMin;$i<=$xMax;$i++){
+                    $tilesOnBoardString.="\t".$tilesOnBoard[$i][$j]["empty"];
+                }
+                 $tilesOnBoardString.="\n";
+            }
 
         $this->gamestate->nextState("endGame");
+            foreach ($result["tiles"] as $tile) {
+                $x=$tile['x'];
+                $y=$tile['y'];
+                $coord=$x." ".$y;
+/*
+$this->dump("coord",$coord);
+$this->dump("tilesOnBoard",$tilesOnBoard[$x][$y]['id']);
+*/
+                if( ( $x + $y ) %2 == 0){
+
+                    $resultat = $tilesOnBoard[($x+1)][$y]["empty"] +
+                    $tilesOnBoard[($x-1)][$y]["empty"] +
+                    $tilesOnBoard[$x][($y+1)]["empty"];
+
+                }else{
+
+                    $resultat = $tilesOnBoard[($x+1)][$y]["empty"] +
+                    $tilesOnBoard[($x-1)][$y]["empty"] +
+                    $tilesOnBoard[$x][($y-1)]["empty"];
+
+                }
+
+                if($resultat == 2)
+                    $purchasableTiles[]=$tilesOnBoard[$x][$y]["id"];
+
+            }
+
+        }
+
+        return $purchasableTiles;
 
     }
 
@@ -944,6 +1059,10 @@ $this->dump("nb",sizeof($colors) );
         // WARNING: We must only return information visible by the current player.
         $player_id = $this->getCurrentPlayerId();
         $result['player_id'] = $player_id;
+
+        $result['purchase'] = self::getGameStateValue('purchase');
+
+        $result["purchasableTiles"] = $this->getPurchasableTiles();
 
         $result['final_round'] = self::getGameStateValue('last_round_announced');
 
