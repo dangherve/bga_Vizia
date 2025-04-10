@@ -615,6 +615,11 @@ alert("*** check dom ****")
 
             this.displayFinalRoundWarning();
 
+            if(isDebug){
+                this.statusBar.addActionButton(_('debug on'), () => this.debugOn(), { color: 'green' });
+                this.statusBar.addActionButton(_('debug off'), () => this.debugOff(), { color: 'cyan' });
+            }
+
             if( this.isCurrentPlayerActive() )
             {
                 switch( stateName )
@@ -623,10 +628,6 @@ alert("*** check dom ****")
                     this.statusBar.addActionButton(_('Play'), () => this.onPlay(), { color: 'primary' });
                     this.statusBar.addActionButton(_('Reset '), () => this.onReset(), { color: 'red' });
 
-                    if(isDebug){
-                        this.statusBar.addActionButton(_('debug on'), () => this.debugOn(), { color: 'green' });
-                        this.statusBar.addActionButton(_('debug off'), () => this.debugOff(), { color: 'cyan' });
-                    }
                     this.refreshHandler();
                     break;
                 }
@@ -840,7 +841,7 @@ playedTileText.innerHTML = placeText.innerHTML
 placeText.innerHTML = tmp
 
             if( createPlace ){
-                this.playedTile[place.id] = { x, y }
+
                 r = Math.abs(x+y)%2
 
                 var elements =[]
@@ -1025,8 +1026,9 @@ debug(tileCommon)
         notif_playedTile: function(args) {
 
             if(this.playerId != args.player_id){
-                this.addElement(args.places);
+console.log(args)
                 this.addElement(args.tiles);
+                this.addElement(args.places);
             }else{
 
                 dojo.query('.playedTile').removeClass('playedTile');

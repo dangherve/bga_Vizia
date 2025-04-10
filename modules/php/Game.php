@@ -659,7 +659,7 @@ $this->dump("captureToken",$this->captureToken);
         $this->notifyAllPlayers(
             'nextPlayer',"",array(
                 "commonTile" => $common,
-                "tilesremain" => $tilesRemain,
+                "tilesRemain" => $tilesRemain,
             )
         );
 
@@ -699,7 +699,6 @@ $this->trace("**********continue");
     }
 
     public function countTriangle($token) {
-        $triange=0;
 /*
 UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRight = null ,triangleUp = null ,  triangleUpLeft = null, triangleUpRight = null
 */
