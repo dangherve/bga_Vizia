@@ -285,12 +285,14 @@ $this->dump("CheckWhellsCompleted ", $msg);
 
         if($token != null){
 
+                $tokenId=$token["token_id"];
+
             if ($token["token_player"] != null){
                 $tokenPlayerTest="token_player = ".$token["token_player"];
-                $tokenId=$token["token_id"];
+                $tokenIdUI=$token["token_id"];
             }else{
                 $tokenPlayerTest="token_player is null";
-                $tokenId=-1;
+                $tokenIdUI=-1;
             }
 
             $adjacentTtokenNumber=(int)$this->getUniqueValueFromDB("SELECT count(token_id)
@@ -323,7 +325,7 @@ $this->dump("sameColorTokenNumber",$sameColorTokenNumber);
                     $newPlayer=$this->getActivePlayerId();
 
                     $this->captureToken[]=[
-                        'id' => $tokenId,
+                        'id' => $tokenIdUI,
                         'player' => $newPlayer,
                         'x' => $x,
                         'y' => $y];
@@ -439,6 +441,33 @@ $this->trace("******DONE*********");
             }
         }
 
+
+
+        if(strlen($tokenSpent)!=0){
+
+            if (self::getGameStateValue('purchase') ==0 ){
+                throw new \BgaUserException(self::_("purchased tile is not permited for this game"), true);
+            }
+
+            $list_token = explode(';',$tokenSpent);
+            $tokenToRemove=[];
+            $tileToRemove=[];
+
+            foreach ($list_token as $token){
+                if (strlen($token)!=0){
+                    $data  = explode(',',$token);
+                    $tokenToRemove[]="token_".$data[0];
+                    $tileToRemove[]=$data[1];
+
+                     self::DbQuery(sprintf("UPDATE token SET token_player = NULL  WHERE token_id = '%s'", $data[0]));
+
+$this->dump("token remove",$data[0]);
+
+                }
+            }
+
+        }
+
         //update tile location and get missing info
         $list_playedTile = explode(';',$tilePlayed);
         foreach ($list_playedTile as $tile){
@@ -540,27 +569,6 @@ $this->dump("sql",$sql);
         }
 
         if(strlen($tokenSpent)!=0){
-
-            if (self::getGameStateValue('purchase') ==0 ){
-                throw new \BgaUserException(self::_("purchased tile is not permited for this game"), true);
-            }
-
-            $list_token = explode(';',$tokenSpent);
-            $tokenToRemove=[];
-            $tileToRemove=[];
-
-            foreach ($list_token as $token){
-                if (strlen($token)!=0){
-                    $data  = explode(',',$token);
-                    $tokenToRemove[]="token_".$data[0];
-                    $tileToRemove[]=$data[1];
-
-                     self::DbQuery(sprintf("UPDATE token SET token_player = NULL  WHERE token_id = '%s'", $data[0]));
-
-
-                }
-            }
-
             $this->notifyAllPlayers(
             'purchased',clienttranslate($this->getActivePlayerName()." bought tile "),
             [

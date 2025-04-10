@@ -2,9 +2,6 @@
   "100": {
     "name": "Multiple Game",
     "values": {
-      "0": {
-        "name": "reduce game half of standard game"
-      },
       "1": {
         "name": "Standard game"
       },
@@ -63,7 +60,7 @@
     }
   },
   "105": {
-    "name": "Purchase  No effect",
+    "name": "Purchase",
     "values": {
       "0": {
         "name": "Disable"

@@ -273,7 +273,7 @@
 
 
 
-.currentTile {
+.currentToken, .currentTile {
     pointer-events: auto;
 }
 
@@ -318,11 +318,22 @@
 }
 
 
+/*
+TO THINK BETTER IDEA
+*/
+.currentToken {
+    border: 1px solid white;
+}
+
 .currentTile  polygon {
 
     stroke: black !important;
     stroke-width: 20;
+}
 
+.purchasableTile  polygon {
+    stroke: #DAA520 !important;
+    stroke-width: 20;
 }
 
 .currentPlace  polygon {
