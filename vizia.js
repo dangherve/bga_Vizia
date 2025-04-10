@@ -38,7 +38,7 @@ const jstpl_triangle = (tpl) => `
 
 
 const jstpl_circle = (tpl) => `
-<div class='token' style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
+<div class='token' id="token_${tpl.id}" style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
 <svg  width='${tpl.token_size}' height='${tpl.token_size}' >
 <circle r="${tpl.token_size/2-5}" cx="${tpl.token_size/2}" cy="${tpl.token_size/2}" opacity="1" fill="${tpl.color}" />
 <text style="display: none; z-index: 10" x="10" y="40" font-size="30" fill="black">${tpl.x}x${tpl.y}</text>
@@ -308,17 +308,21 @@ alert("*** check dom ****")
 
             for( i in tokens ){
                 var token = tokens[i];
-                tpl = {};
+                if(token.player != null){
 
-                tpl.top=65;
-                tpl.left=75;
-                tpl.token_size= this.token_size;
+                    tpl = {};
 
-                tpl.class="token";
-                tpl.color="#"+this.players[token.player].color ;
+                    tpl.top=67;
+                    tpl.left=82;
+                    tpl.token_size= this.token_size;
 
-                document.getElementById("place_"+token.x+"x"+token.y).innerHTML += jstpl_circle(tpl);
+                    tpl.class="token";
+                    tpl.color="#"+this.players[token.player].color ;
+                    tpl.id=token.id
 
+                    document.getElementById("place_"+token.x+"x"+token.y).innerHTML += jstpl_circle(tpl);
+
+                }
             }
 
         },
@@ -493,7 +497,7 @@ alert("*** check dom ****")
             this.final_round=gamedatas.final_round
             this.displayFinalRoundWarning();
 
-            document.getElementById('remain').innerHTML= gamedatas.tilesremain;
+            document.getElementById('remain').innerHTML= gamedatas.tilesRemain;
 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
@@ -567,12 +571,14 @@ alert("*** check dom ****")
             for (i = 0 ; i < toto.length; i++ ){
                 toto[i].className.baseVal='debug debugON'
             }
+            document.getElementById('remain').className ='whiteblock debugON'
         },
         debugOff: function (){
             toto = document.getElementsByClassName('debug')
             for (i = 0 ; i < toto.length; i++ ){
                 toto[i].className.baseVal='debug debugOFF'
             }
+            document.getElementById('remain').className ='whiteblock debugOFF'
         },
 
 
@@ -767,7 +773,6 @@ alert("*** check dom ****")
             debug(place.className)
 
             }
-
             dojo.query( ".currentTile" ).removeClass("currentTile");
 
             placeSvg = place.getElementsByTagName("svg")[0]
@@ -953,10 +958,20 @@ debug(tileCommon)
             this.token(args.token);
         },
 
+        notif_captureToken: function(args) {
+console.log(args)
+            if( args.token[0].id != -1){
+                document.getElementById("token_"+args.token[0].id).getElementsByTagName("svg")[0].getElementsByTagName("circle")[0].setAttribute("fill","#"+this.players[args.token[0].player].color)
+            }else{
+                this.token(args.token);
+            }
+        },
+
+
         notif_nextPlayer: function(args) {
             this.CommonTile(args.commonTile)
             this.refreshHandler();
-            document.getElementById('remain').innerHTML= args.tilesremain;
+            document.getElementById('remain').innerHTML= args.tilesRemain;
         },
 
         notif_game_end_trigger: function(notif) {

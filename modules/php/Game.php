@@ -81,6 +81,9 @@ class Game extends \Table
             5 => clienttranslate('Green'),
         ];
 
+        $this->token =[];
+        $this->captureToken =[];
+
     }
 
 
@@ -226,26 +229,31 @@ foreach($debug as $debugTile){
 
 
 
-            $token[0]=[ 'player' => $player_id,
-                     'x' => $x,
-                     'y' => $y];
+            $this->token[]=[
+                'id' => $tokenId,
+                'player' => $player_id,
+                'x' => $x,
+                'y' => $y];
 
-            $this->notifyAllPlayers(
-                'newToken',clienttranslate($this->getActivePlayerName()." completed a wheel"),
-                [
-                    'token' => $token,
-                ]
-            );
+
+
+            if($this->getGameStateValue('capture') == 1){
+$message=$x." ".$y;
+
+$this->dump("*************************** CAPTURE ***********",$message);
+                $this->CheckTokensCapture($x, $y);
+$this->trace("*************************** end CAPTURE ***********");
+
+            }
+
         }
 
     }
 
 //probably a better way to do it
     public function CheckWhellsCompleted( int $x , int $y){
-$this->trace("===================================================");
-$this->dump("x",$x);
-$this->dump("y",$y);
-
+$msg=$x." ".$y;
+$this->dump("CheckWhellsCompleted ", $msg);
 
         if( ( $x + $y ) %2 == 0){
 
@@ -270,6 +278,86 @@ $this->dump("y",$y);
             $this->CheckWheelCompleted($x, ($x-1), ($x+1), $y, ($y+1));
         }
     }
+
+    public function CheckTokenCapture( int $x , int $y){
+        $token = $this->getObjectFromDB("SELECT token_player, token_id
+        FROM token WHERE board_token_x = ".($x)." and board_token_y = ".($y));
+
+        if($token != null){
+
+            if ($token["token_player"] != null){
+                $tokenPlayerTest="token_player = ".$token["token_player"];
+                $tokenId=$token["token_id"];
+            }else{
+                $tokenPlayerTest="token_player is null";
+                $tokenId=-1;
+            }
+
+            $adjacentTtokenNumber=(int)$this->getUniqueValueFromDB("SELECT count(token_id)
+                FROM token WHERE
+                (board_token_x = ".($x-1)." AND board_token_y = ".($y-1).") or
+                (board_token_x = ".($x+1)." AND board_token_y = ".($y-1).") or
+                (board_token_x = ".($x-2)." AND board_token_y = ".($y)."  ) or
+                (board_token_x = ".($x+2)." AND board_token_y = ".($y)."  ) or
+                (board_token_x = ".($x-1)." AND board_token_y = ".($y+1).") or
+                (board_token_x = ".($x+1)." AND board_token_y = ".($y+1).")");
+
+$this->dump("adjacentTtokenNumber",$adjacentTtokenNumber);
+
+            if ($adjacentTtokenNumber == 6) {
+
+                $sameColorTokenNumber=(int)$this->getUniqueValueFromDB("SELECT count(token_id)
+                    FROM token WHERE
+                    ".$tokenPlayerTest." AND (
+                    (board_token_x = ".($x-1)." AND board_token_y = ".($y-1).") or
+                    (board_token_x = ".($x+1)." AND board_token_y = ".($y-1).") or
+                    (board_token_x = ".($x-2)." AND board_token_y = ".($y)."  ) or
+                    (board_token_x = ".($x)."   AND board_token_y = ".($y)."   ) or
+                    (board_token_x = ".($x+2)." AND board_token_y = ".($y)."  ) or
+                    (board_token_x = ".($x-1)." AND board_token_y = ".($y+1).") or
+                    (board_token_x = ".($x+1)." AND board_token_y = ".($y+1)."))");
+$this->dump("sameColorTokenNumber",$sameColorTokenNumber);
+
+                if ($sameColorTokenNumber == 1) {
+
+                    $newPlayer=$this->getActivePlayerId();
+
+                    $this->captureToken[]=[
+                        'id' => $tokenId,
+                        'player' => $newPlayer,
+                        'x' => $x,
+                        'y' => $y];
+
+                    $sql="UPDATE token SET token_player = ".$newPlayer."
+                            WHERE token_id = ".$tokenId;
+
+                    static::DbQuery($sql);
+                }
+
+            }
+
+        }else{
+            $this->trace("NO token found");
+        }
+    }
+
+    public function CheckTokensCapture( int $x , int $y){
+$this->trace("******1*********");
+        $this->CheckTokenCapture(($x-1), ($y-1));
+$this->trace("******2*********");
+        $this->CheckTokenCapture(($x+1), ($y-1));
+$this->trace("******3*********");
+        $this->CheckTokenCapture(($x+2), ($y));
+$this->trace("******4*********");
+        $this->CheckTokenCapture(($x+1), ($y+1));
+$this->trace("******5*********");
+        $this->CheckTokenCapture(($x-1), ($y+1));
+$this->trace("******6*********");
+        $this->CheckTokenCapture(($x-2), ($y));
+$this->trace("******DONE*********");
+    }
+
+
 
 
 //probably a better way to do it
@@ -358,30 +446,31 @@ $this->dump("y",$y);
             if (strlen($tile)!=0){
                 $tileData = explode(',',$tile);
                 $tileId = (int)explode('_',$tileData[0])[1];
-                $tileX = (int)$tileData[1];
-                $tileY = (int)$tileData[2];
-
-                $this->CheckTilePlacement((int)$tileId, $tileX, $tileY);
-
-                $sql="UPDATE tile SET tile_location = 'Board',
-                    board_tile_x = ".$tileX.", board_tile_y = ".$tileY."
-                    WHERE tile_id = ".$tileId;
-
-                static::DbQuery($sql);
-
-                $tiles[$tileId]["x"] = $tileX;
-                $tiles[$tileId]["y"] = $tileY;
-
                 $tiles[$tileId]["id"] = $tileId;
-
+                $tiles[$tileId]["x"] = (int)$tileData[1];
+                $tiles[$tileId]["y"] = (int)$tileData[2];
                 $tileColor = $this->getUniqueValueFromDB("SELECT tile_color
                 FROM tile WHERE tile_id = ".$tileId);
 
                 $tiles[$tileId]["color"]=$tileColor;
 
+                $this->CheckTilePlacement(
+                    $tileId,
+                    $tiles[$tileId]["x"],
+                    $tiles[$tileId]["y"]);
+
+                $sql="UPDATE tile SET tile_location = 'Board',
+                    board_tile_x = ".$tiles[$tileId]["x"].",
+                    board_tile_y = ".$tiles[$tileId]["y"]."
+                    WHERE tile_id = ".$tileId;
+
+                static::DbQuery($sql);
+
+                $this->CheckWhellsCompleted( $tiles[$tileId]["x"], $tiles[$tileId]["y"]);
+
+
                 $message.=COLORS[$tileColor]["name"]." tile ";
 
-                $this->CheckWhellsCompleted( $tileX, $tileY);
             }
         }
 
@@ -468,6 +557,26 @@ $this->dump("allTiles",$allTiles);
                 'places' => $placesFinal,
             ]
         );
+
+
+        if( count($this->token) != 0)
+        $this->notifyAllPlayers(
+            'newToken',clienttranslate($this->getActivePlayerName()." completed a wheel ".$x." ".$y),
+            [
+                'token' => $this->token,
+            ]
+        );
+
+$this->dump("captureToken",$this->captureToken);
+
+        if( count($this->captureToken) != 0)
+        $this->notifyAllPlayers(
+                        'captureToken',clienttranslate($this->getActivePlayerName()." capture a token ".$x." ".$y),
+                        [
+                            'token' => $this->captureToken,
+                        ]
+                    );
+
 
         // at the end of the action, move to the next state
         $this->gamestate->nextState("nextPlayer");
@@ -559,9 +668,11 @@ $this->trace("**********continue");
         }
     }
 
-    public function checkToken($token): int {
-        $score=0;
-
+    public function countTriangle($token) {
+        $triange=0;
+/*
+UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRight = null ,triangleUp = null ,  triangleUpLeft = null, triangleUpRight = null
+*/
 
         if(!$token["triangleDown"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
@@ -575,7 +686,6 @@ $this->trace("**********continue");
                     board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]-1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
-                $score+=2;
                 self::DbQuery(sprintf("UPDATE token SET triangleDown = 1  WHERE token_id = '%s'", $token["id"]));
                 self::DbQuery(sprintf("UPDATE token SET triangleDownLeft = 1  WHERE token_id = '%s'", $token2));
                 self::DbQuery(sprintf("UPDATE token SET triangleDownRight = 1  WHERE token_id = '%s'", $token3));
@@ -594,7 +704,6 @@ $this->trace("**********continue");
                     board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]+1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
-                $score+=2;
                 self::DbQuery(sprintf("UPDATE token SET triangleUp = 1  WHERE token_id = '%s'", $token["id"]));
                 self::DbQuery(sprintf("UPDATE token SET triangleUpLeft = 1  WHERE token_id = '%s'", $token2));
                 self::DbQuery(sprintf("UPDATE token SET triangleUpRight = 1  WHERE token_id = '%s'", $token3));
@@ -613,7 +722,6 @@ $this->trace("**********continue");
                     board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]-1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
-                $score+=2;
                 self::DbQuery(sprintf("UPDATE token SET triangleUpLeft = 1  WHERE token_id = '%s'", $token["id"]));
                 self::DbQuery(sprintf("UPDATE token SET triangleUpRight = 1  WHERE token_id = '%s'", $token2));
                 self::DbQuery(sprintf("UPDATE token SET triangleUp = 1  WHERE token_id = '%s'", $token3));
@@ -632,7 +740,6 @@ $this->trace("**********continue");
                     board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]+1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
-                $score+=2;
                 self::DbQuery(sprintf("UPDATE token SET triangleDownLeft = 1  WHERE token_id = '%s'", $token["id"]));
                 self::DbQuery(sprintf("UPDATE token SET triangleDownRight = 1  WHERE token_id = '%s'", $token2));
                 self::DbQuery(sprintf("UPDATE token SET triangleDown = 1  WHERE token_id = '%s'", $token3));
@@ -651,7 +758,6 @@ $this->trace("**********continue");
                     board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]-1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
-                $score+=2;
                 self::DbQuery(sprintf("UPDATE token SET triangleUpRight = 1  WHERE token_id = '%s'", $token["id"]));
                 self::DbQuery(sprintf("UPDATE token SET triangleUpLeft = 1  WHERE token_id = '%s'", $token2));
                 self::DbQuery(sprintf("UPDATE token SET triangleUp = 1  WHERE token_id = '%s'", $token3));
@@ -670,14 +776,12 @@ $this->trace("**********continue");
                     board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]+1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
-                $score+=2;
                 self::DbQuery(sprintf("UPDATE token SET triangleDownRight = 1  WHERE token_id = '%s'", $token["id"]));
                 self::DbQuery(sprintf("UPDATE token SET triangleDownLeft = 1  WHERE token_id = '%s'", $token2));
                 self::DbQuery(sprintf("UPDATE token SET triangleDown = 1  WHERE token_id = '%s'", $token3));
             }
         }
 
-        return $score;
     }
 
     public function calculateScore(): void {
@@ -685,9 +789,11 @@ $this->trace("**********continue");
         $players = $this->loadPlayersBasicInfos();
 
 
-        $points = [['str' => "points", 'args' => []]];
-        $pointsTriange = [['str' => "points triangle", 'args' => []]];
-        $pointsTriange2 = [['str' => "points triangle2", 'args' => []]];
+        $simpleTile = [['str' => "point simple tile", 'args' => []]];
+        $bicolorPoint = [['str' => "point bicolor tile", 'args' => []]];
+        $prismePoint = [['str' => "point prisme tile", 'args' => []]];
+
+        $trianglePoint = [['str' => "triangle point", 'args' => []]];
         $pointsGroup = [['str' => "points group", 'args' => []]];
         $pointsTotal = [['str' => "points total", 'args' => []]];
 
@@ -700,11 +806,9 @@ $this->trace("**********continue");
                 'type' => 'header',
             ];
 
-            $points[$player_id]=0;
-            $pointsTriange[$player_id]=0;
-            $pointsGroup[$player_id]=0;
-            $pointsTotal[$player_id]=0;
-
+            $simpleTile[$player_id]=0;
+            $bicolorTile[$player_id]=0;
+            $prismeTile[$player_id]=0;
         }
 
         $tokens = self::getCollectionFromDb("SELECT token_id as id,token_player
@@ -721,13 +825,13 @@ $this->dump("colors",$colors);
 $this->dump("nb",sizeof($colors) );
             // multicolor
             if (sizeof($colors) == 6){
-                $points[$token["token_player"]]+=3;
+                $prismeTile[$token["token_player"]]++;
             // bicolor
             }else if (sizeof($colors) == 2){
-                 $points[$token["token_player"]]+=2;
+                 $bicolorTile[$token["token_player"]]++;
             //tricolor
             }else if (sizeof($colors) == 3){
-                 $points[$token["token_player"]]+=1;
+                 $simpleTile[$token["token_player"]]++;
             //error
             }else{
                  $this->trace( "Error calculation point error" );
@@ -741,7 +845,7 @@ $this->dump("nb",sizeof($colors) );
                 triangleUp, triangleDownRight, triangleUpRight
                 FROM token WHERE token_id = ".$token["id"]);
 
-                $pointsTriange[$token["token_player"]]+=$this->checkToken($tokenUpdated[$token["id"]]);
+                $this->countTriangle($tokenUpdated[$token["id"]]);
             }
 
             if($this->getGameStateValue('groupBonus') == 1){
@@ -758,34 +862,49 @@ $this->dump("nb",sizeof($colors) );
 
 
         foreach ($players as $player_id => $player) {
-            $pointsTriange2[$player_id]=
-                    (self::getUniqueValueFromDB("SELECT count(token_id)
-                    FROM token
-                    WHERE token_player =".$player_id." and
-                    triangleDown = 1")+
-                    self::getUniqueValueFromDB("SELECT count(token_id)
-                    FROM token
-                    WHERE token_player =".$player_id." and
-                    triangleUp = 1"))
-                    *2;
 
-            $pointsGroup[$player_id]=self::getUniqueValueFromDB("
-                    SELECT max(count) FROM (
-                        SELECT count(token_id) as count
+            if($this->getGameStateValue('triangleBonus') == 1){
+                //can use directly result of countTriangle but "work" only the first time as we did not count twice the triangle
+
+                $triangeNumber[$player_id]=
+                        (self::getUniqueValueFromDB("SELECT count(token_id)
                         FROM token
-                        WHERE token_player =".$player_id."
-                        GROUP BY tileGroup) as tmp");
+                        WHERE token_player =".$player_id." and
+                        triangleDown = 1")+
+                        self::getUniqueValueFromDB("SELECT count(token_id)
+                        FROM token
+                        WHERE token_player =".$player_id." and
+                        triangleUp = 1"));
+            }else{
+                $triangeNumber[$player_id]=0;
+            }
+            if($this->getGameStateValue('groupBonus') == 1){
+                $pointsGroup[$player_id]=self::getUniqueValueFromDB("
+                        SELECT max(count) FROM (
+                            SELECT count(token_id) as count
+                            FROM token
+                            WHERE token_player =".$player_id."
+                            GROUP BY tileGroup) as tmp");
+            }else{
+                $pointsGroup[$player_id]=0;
+            }
+
+        $bicolorPoint[$player_id] = $bicolorTile[$player_id]." x 2 = ".$bicolorTile[$player_id]*2;
+        $prismePoint[$player_id] = $prismeTile[$player_id]." x 3 = ".$prismeTile[$player_id]*3;
+        $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
 
 
             $pointsTotal[$player_id]=
-                $points[$player_id]+
-                $pointsTriange[$player_id]+
+                $simpleTile[$player_id]+
+                $bicolorTile[$player_id]*2+
+                $prismeTile[$player_id]*3+
+                $triangeNumber[$player_id]*2+
                 $pointsGroup[$player_id];
         }
 
-        $table = [$nameRow,$points];
-            if($this->getGameStateValue('triangleBonus')){
-                $table[] = $pointsTriange;
+        $table = [$nameRow,$simpleTile,$bicolorPoint,$prismePoint];
+            if($this->getGameStateValue('triangleBonus') == 1){
+                $table[] = $trianglePoint;
             }
             if($this->getGameStateValue('groupBonus') == 1){
                 $table[] = $pointsGroup;
@@ -857,7 +976,7 @@ $this->dump("hand",$result["hand"]);
         $result["token"] = self::getObjectListFromDB("SELECT token_id id,board_token_x x,board_token_y y, token_player player, tileGroup
                 FROM token");
 
-        $result["tilesremain"]=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
+        $result["tilesRemain"]=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
 
         $places=[];
         foreach ($result["tiles"] as $tile) {
@@ -1099,8 +1218,11 @@ $this->dump("hand",$result["hand"]);
             WHERE  tile_id = '".$tile_id."'");
 
         }
-    }
 
+        $sql = "INSERT INTO `token` ( `board_token_x`, `board_token_y` ) VALUES ('0', '0')";
+        static::DbQuery( $sql );
+
+    }
 
 
     protected function pickTile( $number ){

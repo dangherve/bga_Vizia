@@ -15,7 +15,7 @@
         "name": "use three games"
       }
     },
-    "default": 0
+    "default": 1
   },
   "101": {
     "name": "Communal Tiles",
@@ -52,7 +52,7 @@
   },
 
   "104": {
-    "name": "Capture  No effect",
+    "name": "Capture",
     "values": {
       "0": {
         "name": "Disable"
