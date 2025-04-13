@@ -120,7 +120,6 @@ function (dojo, declare) {
 
             this.playedTile = {}
             this.playerTile = {}
-            this.commonTile = {}
             this.token =  {}
 
             this.handler = {}
@@ -209,8 +208,7 @@ function (dojo, declare) {
         },
 
 
-        CommonTile: function( common){
-
+        commonTile: function( common){
 
             document.getElementById('commonTile').innerHTML= "";
 
@@ -508,7 +506,7 @@ alert("*** check dom ****")
 
             this.initiateTemplate();
 
-            this.CommonTile(gamedatas.common);
+            this.commonTile(gamedatas.common);
             this.initiatePlayer(gamedatas.hand);
 
             this.addElement(gamedatas.places);
@@ -627,6 +625,7 @@ alert("*** check dom ****")
                  case 'playerTurn':
                     this.statusBar.addActionButton(_('Play'), () => this.onPlay(), { color: 'primary' });
                     this.statusBar.addActionButton(_('Reset '), () => this.onReset(), { color: 'red' });
+                    this.statusBar.addActionButton(_('CAN NOT PLAY '), () => this.canNotPlay(), { color: 'red' });
 
                     this.refreshHandler();
                     break;
@@ -751,7 +750,7 @@ alert("*** check dom ****")
 
             }else if  ((dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"commonPlace"))){
 
-                if(!dojo.hasClass(playedTile,"purchasedTile")){
+                if(dojo.hasClass(playedTile,"purchasedTile")){
                     this.showMessage(_('purchased tile need to stay on board'), 'error');
                     return
                 }
@@ -767,7 +766,7 @@ alert("*** check dom ****")
 
             }else if  ((dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"handPlace"))){
 
-                if(!dojo.hasClass(playedTile,"purchasedTile")){
+                if(dojo.hasClass(playedTile,"purchasedTile")){
                     this.showMessage(_('purchased tile need to stay on board'), 'error');
                     return
                 }
@@ -964,12 +963,6 @@ debug(item)
 
         onPlay: function () {
 
-            tileCommon = ""
-            for (var id in this.commonTile ) {
-                tile=this.commonTile[id]
-                tileCommon += id+";"
-            }
-
             tilePlayed = ""
             for (var id in this.playedTile ) {
                 tile=this.playedTile[id]
@@ -1003,6 +996,10 @@ debug(tileCommon)
 
         },
 
+        canNotPlay: function () {
+            this.bgaPerformAction('actCanNotPlay');
+        },
+
         ///////////////////////////////////////////////////
         //// Reaction to cometD notifications
 
@@ -1034,7 +1031,6 @@ console.log(args)
                 dojo.query('.playedTile').removeClass('playedTile');
                 this.playedTile = {};
                 this.playerTile = {};
-                this.commonTile = {};
                 this.tokenSpent = {};
             }
         },
@@ -1082,7 +1078,7 @@ debug("***END****")
         },
 
         notif_nextPlayer: function(args) {
-            this.CommonTile(args.commonTile)
+            this.commonTile(args.commonTile)
             this.refreshHandler();
             document.getElementById('remain').innerHTML= args.tilesRemain;
         },
