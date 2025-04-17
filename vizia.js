@@ -24,9 +24,9 @@ var colorBlindStatus = "colorBlindOFF"
 var memoryHelpStatus = "memoryHelpOFF"
 
 const jstpl_triangle = (tpl) => `
-<div id="tile_${tpl.tile_id}" class="${tpl.class} ${tpl.mapClass}">
-    <svg width='${tpl.tile_size}px' viewBox="0 0 400 350" ${tpl.class} >
-        <polygon
+<div id="tile_${tpl.tile_id}" class="tile">
+    <svg width='${tpl.tile_size}px' viewBox="0 0 400 350" } >
+        <polygon class="${tpl.class}"
           points="${tpl.points[0][0]},${tpl.points[0][1]} ${tpl.points[1][0]},${tpl.points[1][1]} ${tpl.points[2][0]},${tpl.points[2][1]}"
           stroke="`+tpl.color+`" stroke-width=10 stroke-opacity="`+tpl.opacity+`"
           fill="`+tpl.color+`" fill-opacity="`+tpl.opacity+`" />
@@ -38,9 +38,9 @@ const jstpl_triangle = (tpl) => `
 
 
 const jstpl_circle = (tpl) => `
-<div class='token ${tpl.player}' id="token_${tpl.id}" style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
+<div class='token' id="token_${tpl.id}" style="width:${tpl.token_size}px;top:${tpl.top}px;left:${tpl.left}px;">
 <svg  width='${tpl.token_size}' height='${tpl.token_size}' >
-<circle r="${tpl.token_size/2-5}" cx="${tpl.token_size/2}" cy="${tpl.token_size/2}" opacity="1" fill="${tpl.color}" />
+<circle class="${tpl.player}" r="${tpl.token_size/2-5}" cx="${tpl.token_size/2}" cy="${tpl.token_size/2}" opacity="1" fill="${tpl.color}" />
 <text style="display: none; z-index: 10" x="10" y="40" font-size="30" fill="black">${tpl.x}x${tpl.y}</text>
 </svg>
 </div>`;
@@ -149,7 +149,9 @@ function (dojo, declare) {
             // Example to add a div on the game area
             document.getElementById('game_play_area').insertAdjacentHTML('beforeend', `
                 <div id="commonTile" class="whiteblock"></div>
-                <div id="remain" class="whiteblock"></div>
+                <div id="remain" class="whiteblock ${debugStatus} "></div>
+                <div id="tileId" class="whiteblock ${debugStatus} "></div>
+
                 <div id="memoryHelp" class="whiteblock">
                     <svg height="200px" width="200px" >
                         <polygon fill="${this.tileColor[this.colorSection][0]}" points="100,100 180.0,100.0 140.0,169.282" stroke="black" stroke-width="1" />
@@ -451,7 +453,10 @@ alert("*** check dom ****")
         updatePurchasableTiles: function(tiles){
             dojo.query( ".purchasableTile" ).removeClass("purchasableTile");
             for( i in tiles ){
-                dojo.addClass("tile_"+tiles[i],"purchasableTile");
+                element=$("tile_"+tiles[i])
+                svg = element.getElementsByTagName("svg")[0]
+                polygon = svg.getElementsByTagName("polygon")[0]
+                polygon.className.baseVal+=" purchasableTile"
             }
             this.refreshHandler();
         },
@@ -594,6 +599,8 @@ alert("*** check dom ****")
                 toto[i].className.baseVal='debug debugON'
             }
             document.getElementById('remain').className ='whiteblock debugON'
+            document.getElementById('tileId').className ='whiteblock debugON'
+
         },
         debugOff: function (){
             toto = document.getElementsByClassName('debug')
@@ -601,6 +608,7 @@ alert("*** check dom ****")
                 toto[i].className.baseVal='debug debugOFF'
             }
             document.getElementById('remain').className ='whiteblock debugOFF'
+            document.getElementById('tileId').className ='whiteblock debugOFF'
         },
 
 
@@ -625,7 +633,7 @@ alert("*** check dom ****")
                  case 'playerTurn':
                     this.statusBar.addActionButton(_('Play'), () => this.onPlay(), { color: 'primary' });
                     this.statusBar.addActionButton(_('Reset '), () => this.onReset(), { color: 'red' });
-                    this.statusBar.addActionButton(_('CAN NOT PLAY '), () => this.canNotPlay(), { color: 'red' });
+//                    this.statusBar.addActionButton(_('CAN NOT PLAY '), () => this.canNotPlay(), { color: 'red' });
 
                     this.refreshHandler();
                     break;
@@ -682,7 +690,6 @@ alert("*** check dom ****")
 
             placeParent=place.parentNode
             placeId = placeParent.id
-
             playedTile = $(this.current_tile);
             createPlace = false
             try{
@@ -696,59 +703,54 @@ alert("*** check dom ****")
 
 
             if (playedTile != null){
+            placeSvg = place.getElementsByTagName("svg")[0]
+            playedTileSvg = playedTile.getElementsByTagName("svg")[0]
 
-            if  ((dojo.hasClass(playedTile,"handTile") && dojo.hasClass(place,"commonPlace"))){
+            placePolygon= placeSvg.getElementsByTagName("polygon")[0]
+            playedTilePolygon = playedTileSvg.getElementsByTagName("polygon")[0]
 
-                if(!dojo.hasClass(playedTile,"playedTile")){
+
+            if  ( (playedTilePolygon.className.baseVal.match("handTile")) &&
+                        (placePolygon.className.baseVal.match("commonPlace"))){
+                if(!playedTilePolygon.className.baseVal.match("savedTile")){
                     this.showMessage(_('Your tile can only go to the board'), 'error');
                     return
                 }
                 delete this.playerTile[playerTile.id]
 
-                dojo.removeClass(place, "commonPlace")
-                dojo.addClass(place, "commonTile")
+                playedTilePolygon.className.baseVal="handPlace"
+                placePolygon.className.baseVal="boardTile playedTile handTile"
 
-                dojo.removeClass(playedTile, "handTile")
-                dojo.removeClass(playedTile, "playedTile")
-                dojo.addClass(playedTile, "handPlace")
 
-            }else if  ((dojo.hasClass(playedTile,"handTile") && dojo.hasClass(place,"boardPlace"))){
+            }else if  ( (playedTilePolygon.className.baseVal.match("handTile")) &&
+                        (placePolygon.className.baseVal.match("boardPlace"))){
                 this.playedTile[playedTile.id] = { x , y}
                 delete this.playerTile[playedTile.id]
+                playedTilePolygon.className.baseVal="handPlace"
+                placePolygon.className.baseVal="handTile playedTile"
 
-                dojo.removeClass(place, "boardPlace")
-                dojo.addClass(place, "boardTile")
-                dojo.addClass(place, "playedTile")
-                dojo.addClass(place, "handTile")
-
-                dojo.removeClass(playedTile, "handTile")
-                dojo.addClass(playedTile, "handPlace")
                 createPlace = true
 
-            }else if  ((dojo.hasClass(playedTile,"commonTile") && dojo.hasClass(place,"boardPlace"))){
-                dojo.removeClass(place, "boardPlace")
-                dojo.addClass(place, "boardTile")
-                dojo.addClass(place, "playedTile")
+            }else if  ( (playedTilePolygon.className.baseVal.match("commonTile")) &&
+                        (placePolygon.className.baseVal.match("boardPlace"))){
 
-                dojo.removeClass(playedTile, "commonTile")
-                dojo.addClass(playedTile, "commonPlace")
+                playedTilePolygon.className.baseVal="commonPlace"
+                placePolygon.className.baseVal="boardTile playedTile"
+
                 createPlace = true
 
                 this.playedTile[playedTile.id] = { x , y}
-            }else if  ((dojo.hasClass(playedTile,"commonTile") && dojo.hasClass(place,"handPlace"))){
-
+            }else if  ( (playedTilePolygon.className.baseVal.match("commonTile")) &&
+                        (placePolygon.className.baseVal.match("handPlace"))){
+debug("**** common -> hand***")
                 this.playerTile[playedTile.id] = this.playedTile[playedTile.id]
                 delete this.playedTile[playedTile.id]
 
-                dojo.removeClass(place, "handPlace")
-                dojo.addClass(place, "playedTile")
-                dojo.addClass(place, "handTile")
+                playedTilePolygon.className.baseVal="commonPlace"
+                placePolygon.className.baseVal="handTile savedTile playedTile"
 
-                dojo.removeClass(playedTile, "commonTile")
-                dojo.addClass(playedTile, "commonPlace")
-                dojo.removeClass(playedTile, "playedTile")
-
-            }else if  ((dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"commonPlace"))){
+            }else if  ( (playedTilePolygon.className.baseVal.match("boardTile")) &&
+                        (placePolygon.className.baseVal.match("commonPlace"))){
 
                 if(dojo.hasClass(playedTile,"purchasedTile")){
                     this.showMessage(_('purchased tile need to stay on board'), 'error');
@@ -757,14 +759,12 @@ alert("*** check dom ****")
 
                 delete this.playedTile[playedTile.id]
 
-                dojo.removeClass(place, "commonPlace")
-                dojo.addClass(place, "commonTile")
+                playedTilePolygon.className.baseVal="boardPlace"
+                placePolygon.className.baseVal="commonTile"
 
-                dojo.removeClass(playedTile, "playedTile")
-                dojo.removeClass(playedTile, "boardTile")
-                dojo.addClass(playedTile, "boardPlace")
 
-            }else if  ((dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"handPlace"))){
+            }else if  ( (playedTilePolygon.className.baseVal.match("boardTile")) &&
+                        (placePolygon.className.baseVal.match("handPlace"))){
 
                 if(dojo.hasClass(playedTile,"purchasedTile")){
                     this.showMessage(_('purchased tile need to stay on board'), 'error');
@@ -773,47 +773,42 @@ alert("*** check dom ****")
 
                     delete this.playedTile[playedTile.id]
 
-                    dojo.removeClass(place, "handPlace")
-                    dojo.addClass(place, "handTile")
+                    placePolygon.className.baseVal="handTile"
 
                     if(!dojo.hasClass(playedTile,"handTile")){
-                         dojo.addClass(place, "playedTile")
+                        placePolygon.className.baseVal+=" playedTile savedTile"
+
                         this.playerTile[playedTile.id] = { x, y }
                     }
 
-                    dojo.removeClass(playedTile, "handTile")
-                    dojo.removeClass(playedTile, "playedTile")
-                    dojo.removeClass(playedTile, "boardTile")
-                    dojo.addClass(playedTile, "boardPlace")
+                    playedTilePolygon.className.baseVal="boardPlace"
 
-            }else if (
-                (dojo.hasClass(playedTile,"handTile") && dojo.hasClass(place,"handPlace")) ||
-                (dojo.hasClass(playedTile,"commonTile") && dojo.hasClass(place,"commonPlace")) ||
-                (dojo.hasClass(playedTile,"boardTile") && dojo.hasClass(place,"boardPlace"))
-                ){
+            }else if  (
+                (playedTilePolygon.className.baseVal.match("handTile") &&
+                        placePolygon.className.baseVal.match("handPlace")) ||
+                (playedTilePolygon.className.baseVal.match("commonTile") &&
+                        placePolygon.className.baseVal.match("commonPlace")) ||
+                (playedTilePolygon.className.baseVal.match("boardTile") &&
+                        placePolygon.className.baseVal.match("boardPlace")) ){
 
                 if(dojo.hasClass(place,"boardPlace")){
                     createPlace = true
                     this.playedTile[playedTile.id] = { x, y }
                 }
 
-                tmpClasse = playedTile.className
-                playedTile.className = place.className
-                place.className = tmpClasse
+                tmpClasse = playedTilePolygon.className.baseVal
+                playedTilePolygon.className.baseVal = placePolygon.className.baseVal
+                placePolygon.className.baseVal = tmpClasse
 
 
             }else{
-            debug(playedTile.className)
-            debug(place.className)
-
+            debug("*****************ERROR ************* ")
+            debug(playedTilePolygon.className)
+            debug(placePolygon.className)
             }
             dojo.query( ".currentTile" ).removeClass("currentTile");
 
-            placeSvg = place.getElementsByTagName("svg")[0]
-            playedTileSvg = playedTile.getElementsByTagName("svg")[0]
 
-            placePolygon= placeSvg.getElementsByTagName("polygon")[0]
-            playedTilePolygon = playedTileSvg.getElementsByTagName("polygon")[0]
 
             placeText= placeSvg.getElementsByTagName("text")[0]
             playedTileText = playedTileSvg.getElementsByTagName("text")[0]
@@ -896,9 +891,12 @@ debug(token)
             currentToken = $(this.current_token);
             if (currentToken != null){
                 currentToken.remove();
-                dojo.query(tile).removeClass("purchasableTile");
-                dojo.query(tile).addClass("currentTile");
-                dojo.query(tile).addClass("playedTile");
+
+                svg = tile.getElementsByTagName("svg")[0]
+debug(svg)
+                polygon= svg.getElementsByTagName("polygon")[0]
+debug(polygon)
+                polygon.className.baseVal="currentTile playedTile boardTile"//purchasedTile
 
                 placeId=tile.parentNode.id
                 id=tile.id//.split("_")[1]
@@ -921,13 +919,17 @@ debug(token)
         },
 
         onAction: function (evt){
-            item = evt.currentTarget//.parentNode.parentNode
-debug(item.className)
-            if( item.className.match("Place") ){
+            actionItem = evt.currentTarget//.parentNode.parentNode
+
+            item=actionItem.parentNode.parentNode
+
+            className=actionItem.className.baseVal
+$(tileId).innerHTML=item.id
+            if( className.match("Place") ){
                 this.selectPlace(item)
-            }else if (item.className.match("purchasableTile")){
+            }else if (className.match("purchasableTile")){
                 this.buyTile(item)
-            }else if (item.className.match("Tile")){
+            }else if (className.match("Tile")){
                 this.selectTile(item)
             }else if (item.className.match("token")){
                 this.selectToken(item)
@@ -936,7 +938,6 @@ debug(item.className)
 debug(item)
             }
     },
-
 
 
 
@@ -990,7 +991,6 @@ debug(tileCommon)
             this.bgaPerformAction('actPlay', {
                 tilePlayed: tilePlayed,
                 tilePlayer: tilePlayer,
-                tileCommon: tileCommon,
                 tokenSpent: tokenSpent
             });
 
@@ -1027,8 +1027,20 @@ console.log(args)
                 this.addElement(args.tiles);
                 this.addElement(args.places);
             }else{
+                for (var id in this.playedTile ) {
+                    playedTile = $(id);
+                    playedTileSvg = playedTile.getElementsByTagName("svg")[0]
+                    playedTilePolygon = playedTileSvg.getElementsByTagName("polygon")[0]
+                    playedTilePolygon.className.baseVal="boardTile"
+                }
+                for (var id in this.playerTile ) {
+                    playedTile = $(id);
+                    playedTileSvg = playedTile.getElementsByTagName("svg")[0]
+                    playedTilePolygon = playedTileSvg.getElementsByTagName("polygon")[0]
+                    playedTilePolygon.className.baseVal="handTile"
+                }
 
-                dojo.query('.playedTile').removeClass('playedTile');
+
                 this.playedTile = {};
                 this.playerTile = {};
                 this.tokenSpent = {};

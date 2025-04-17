@@ -250,8 +250,16 @@
     left: 10%;
     width: 2%;
     border: 2px solid red;
-
 }
+
+#tileId{
+    position: absolute;
+    top: 0px;
+    left: 15%;
+    width: 5%;
+    border: 2px solid green;
+}
+
 
 #memoryHelp{
     border: 2px solid green;
@@ -268,34 +276,43 @@
 }
 
 
-
-
-
-
+.currentTile polygon, .currentTile div polygon{
+    stroke: black !important;
+    stroke-width: 20;
+}
 
 .currentToken, .currentTile {
     pointer-events: auto;
 }
 
-
-.playedTile div polygon {
-    stroke: white;
-    stroke-width: 10;
-    z-index: 0;
-
+.playedTile {
+    stroke: white !important;
+    stroke-width: 20;
+    stroke-opacity: 1;
 }
 
+.commonTile:hover, .handTile:hover, .playedTile:hover {
+    stroke: black !important;
+    stroke-width: 20;
+    stroke-opacity: 1;
+}
+
+.commonPlace:hover, .handPlace:hover, .boardPlace:hover{
+    stroke: white !important;
+    stroke-width: 20;
+    stroke-opacity: 1;
+}
 
 
 .place:hover{
     border: 1px solid black;
 }
 
-.priority1:hover,.commonPlace:hover,.handPlace:hover{
+.commonPlace:hover,.handPlace:hover{
     border: 1px solid blue;
 }
 
-.priority2:hover,.commonTile:hover,.handTile:hover{
+.commonTile:hover,.handTile:hover{
     border: 1px solid green;
 }
 
@@ -303,36 +320,29 @@
     border: 1px solid red;
 }
 
-.commonTile polygon{
-
-/*fill:red;
-    stroke: #00ffff;
-    stroke-width: 20;
- */
- }
-
-.handTile polygon{
-    stroke: #FFFf00;
-    stroke-width: 20;
-
+.commonTile {
 }
 
+
+.commonPlace {
+}
+
+
+.purchasableTile {
+    stroke: #DAA520 !important;
+    stroke-width: 20;
+}
 
 /*
 TO THINK BETTER IDEA
 */
-.currentToken {
-    border: 1px solid white;
-}
-
-.currentTile  polygon {
-
-    stroke: black !important;
-    stroke-width: 20;
-}
-
-.purchasableTile  polygon {
+.currentToken circle{
     stroke: #DAA520 !important;
+    stroke-width: 5;
+}
+
+.handTile polygon{
+    stroke: #FFFf00;
     stroke-width: 20;
 }
 
@@ -343,14 +353,6 @@ TO THINK BETTER IDEA
 */
 }
 
-.playedTile  polygon {
-
-    stroke: white ;
-    stroke-width: 40;
-
-    stroke-opacity: 1;
-
-}
 
 .white {
  border: 10px solid white;
@@ -360,13 +362,6 @@ TO THINK BETTER IDEA
  border: 10px solid black;
 }
 
-.priority1{
-    z-index: 1;
-}
-
-.priority2{
-    z-index: 1;
-}
 
 .token{
     position: absolute;

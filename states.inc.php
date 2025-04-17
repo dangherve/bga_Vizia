@@ -83,10 +83,20 @@ $machinestates = [
         "type" => "game",
         "action" => "stNextPlayer",
         "updateGameProgression" => true,
-        "transitions" => ["calculateScore" => 4, "playerTurn" => 2]
+        "transitions" => ["calculateScore" => 5, "checkCanPlay" => 4]
     ],
 
     4 => [
+        "name" => "checkCanPlay",
+        "description" => '',
+        "type" => "game",
+        "action" => "stCheckCanPlay",
+        "updateGameProgression" => true,
+        "transitions" => ["nextPlayer" => 3, "playerTurn" => 2]
+    ],
+
+
+    5 => [
         "name" => "calculateScore",
         "description" => '',
         "type" => "game",

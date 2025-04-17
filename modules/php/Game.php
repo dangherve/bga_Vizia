@@ -418,13 +418,87 @@ $this->trace("******DONE*********");
      * @throws BgaUserException
      */
 
+
+    public function stCheckCanPlay(): void {
+
+        if(!$this->checkCanplay()){
+$this->trace("*********** can not play");
+
+            $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
+
+            static::DbQuery($sql);
+
+            $message=$this->getActivePlayerName().' can not play at all ';
+
+            $privateTile= self::getObjectListFromDB("SELECT tile_color color
+                    FROM tile
+                    WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
+
+            if (sizeof($privateTile) == 0){
+                $message.=" and do no not have any private tile";
+            }elseif(sizeof($privateTile) == 1){
+                $message.=" and has a";
+                $message.=COLORS[$privateTile[0]['color']]["name"]." tile ";
+                $message.=" in his personal tile";
+            }elseif(sizeof($privateTile) == 2){
+                $message.=" and has a ";
+                $message.=COLORS[$privateTile[0]['color']]["name"]." tile and a ";
+                $message.=COLORS[$privateTile[1]['color']]["name"]." tile";
+                $message.=" in his personal tile";
+            }else{
+                //error
+                $this->dump( "More than 2 private tile should not occure", $privateTile);
+            }
+
+            //send new tiles and places
+            $this->notifyAllPlayers(
+                'canNotPlay',clienttranslate($message),
+                [
+                ]
+            );
+
+            $this->gamestate->nextState("nextPlayer");
+
+        }else{
+$this->trace("****** continue");
+
+            $this->gamestate->nextState("playerTurn");
+        }
+
+//            $this->gamestate->nextState("playerTurn");
+
+     }
+
    public function actCanNotPlay(): void
     {
+        if($this->checkCanplay()){
+            throw new \BgaUserException(self::_("You can play recheck the boad and tile"), true);
+        }
         $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
 
         static::DbQuery($sql);
 
         $message=$this->getActivePlayerName().' can not play at all ';
+
+        $privateTile= self::getObjectListFromDB("SELECT  tile_color color
+                FROM tile
+                WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
+
+        if (sizeof($privateTile) == 0){
+            $message.=" and do no not have any private tile";
+        }elseif(sizeof($privateTile) == 1){
+            $message.=" and has a";
+            $message.=COLORS[$privateTile[0]['color']]["name"]." tile ";
+            $message.=" in his personal tile";
+        }elseif(sizeof($privateTile) == 2){
+            $message.=" and has a ";
+            $message.=COLORS[$privateTile[0]['color']]["name"]." tile and a ";
+            $message.=COLORS[$privateTile[1]['color']]["name"]." tile";
+            $message.=" in his personal tile";
+        }else{
+            //error
+            $this->dump( "More than 2 private tile should not occure", $privateTile);
+        }
 
         //send new tiles and places
         $this->notifyAllPlayers(
@@ -708,7 +782,7 @@ $this->trace("**********continue");
                     }
                 }while ($privateTileRemain == 0);
             }
-            $this->gamestate->nextState("playerTurn");
+            $this->gamestate->nextState("checkCanPlay");
         }
     }
 
@@ -870,8 +944,8 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                 // bicolor
                 }else if (sizeof($colors) == 2){
                      $bicolorTile[$token["token_player"]]++;
-                //tricolor
-                }else if (sizeof($colors) == 3){
+                //simple can have 3 or 4 color
+                }else if ((sizeof($colors) == 3) || (sizeof($colors) == 4)){
                      $simpleTile[$token["token_player"]]++;
                 //error
                 }else{
@@ -930,9 +1004,9 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                 $pointsGroup[$player_id]=0;
             }
 
-        $bicolorPoint[$player_id] = $bicolorTile[$player_id]." x 2 = ".$bicolorTile[$player_id]*2;
-        $prismePoint[$player_id] = $prismeTile[$player_id]." x 3 = ".$prismeTile[$player_id]*3;
-        $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
+            $bicolorPoint[$player_id] = $bicolorTile[$player_id]." x 2 = ".$bicolorTile[$player_id]*2;
+            $prismePoint[$player_id] = $prismeTile[$player_id]." x 3 = ".$prismeTile[$player_id]*3;
+            $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
 
 
             $pointsTotal[$player_id]=
@@ -969,6 +1043,86 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
             'getPurchasableTiles',"",$test
             );
 
+    }
+    public function checkCanplay(): bool {
+        $canPlay = false;
+
+        $table_size=self::getObjectFromDB("SELECT
+            max( board_tile_x ) as xMax,
+            min( board_tile_x ) as xMin,
+            max( board_tile_y ) as yMax,
+            min( board_tile_y ) as yMin
+            FROM tile WHERE tile_location = 'Board'",true);
+
+        $result["tiles"] = self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
+            FROM tile
+            WHERE tile_location = 'Board'");
+
+        $xMin = $table_size["xMin"]-1;
+        $xMax = $table_size["xMax"]+1;
+        $yMin = $table_size["yMin"]-1;
+        $yMax = $table_size["yMax"]+1;
+
+        for($i=$xMin;$i<=$xMax;$i++){
+            for($j=$yMin;$j<=$yMax;$j++){
+             $tilesOnBoard[$i][$j]=null;
+            }
+        }
+
+        foreach ($result["tiles"] as $tile) {
+            $x=$tile['x'];
+            $y=$tile['y'];
+            $tilesOnBoard[$x][$y]=$tile['color'];
+        }
+
+        $result["tiles"] = self::getCollectionFromDb("SELECT  tile_color
+            FROM tile
+            WHERE tile_location = 'common' OR
+            (tile_location = 'Player' and tile_location_arg = ".$this->getCurrentPlayerId().")
+            GROUP BY tile_color" );
+
+        $x=$xMin;
+        $y=$yMin;
+
+        while ((!$canPlay) && ($x<=$xMax) && ($y<=$yMax))  {
+            if($tilesOnBoard[$x][$y] == null){
+
+                foreach ($result["tiles"] as $tile) {
+
+                    $test1=false;
+                    $test2=false;
+                    $test3=false;
+                    if (isset($tilesOnBoard[$x-1][$y]))
+                        $test1=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x-1][$y]);
+
+
+                    if (isset($tilesOnBoard[$x+1][$y]))
+                        $test2=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x+1][$y]);
+
+                    if( ( $x + $y ) %2 == 0){
+                        if (isset($tilesOnBoard[$x][$y+1]))
+                        $test3=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x][$y+1]);
+
+                    }else{
+                        if (isset($tilesOnBoard[$x][$y-1]))
+                            $test3=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x][$y-1]);
+                    }
+                    if( $test1 || $test2 || $test3 )
+                        $canPlay=true;
+
+
+                }
+            }
+
+            $x++;
+            if($x>$xMax){
+                $x=$xMin;
+                $y++;
+            }
+
+
+        }
+        return $canPlay;
     }
 
     public function getPurchasableTiles(): array {
@@ -1018,10 +1172,11 @@ $this->dump("size",$size);
                 for($i=$xMin;$i<=$xMax;$i++){
                     $tilesOnBoardString.="\t".$tilesOnBoard[$i][$j]["empty"];
                 }
-                 $tilesOnBoardString.="\n";
+                $tilesOnBoardString.="\n";
             }
 
-        $this->gamestate->nextState("endGame");
+//$this->dump("tilesOnBoardString",$tilesOnBoardString);
+
             foreach ($result["tiles"] as $tile) {
                 $x=$tile['x'];
                 $y=$tile['y'];
