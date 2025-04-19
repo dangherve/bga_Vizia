@@ -88,7 +88,7 @@ class Game extends \Table
     }
 
 
-    public function CheckColor( $colorA,  $colorB){
+    public function CheckColor( $colorA, $colorB){
 
         if( $colorB == null){
             $this->trace("tile empty");
@@ -200,6 +200,9 @@ foreach($debug as $debugTile){
                 $y,
             );
 
+            $this->incStat(1,"WhellCompleted",$player_id);
+
+
             static::DbQuery($sql);
 
             $sql="SELECT token_id
@@ -227,8 +230,6 @@ foreach($debug as $debugTile){
                 self::notifyAllPlayers( "game_end_trigger", clienttranslate( 'Warning: The game will finish at the end of this round' ), array() );
                 self::setGameStateValue("last_round_announced", 1);
             }
-
-
 
             $this->token[]=[
                 'id' => $tokenId,
@@ -333,6 +334,9 @@ $this->dump("sameColorTokenNumber",$sameColorTokenNumber);
 
                     $sql="UPDATE token SET token_player = ".$newPlayer."
                             WHERE token_id = ".$tokenId;
+
+                    $this->incStat(1,"TokenCaptured",$player_id);
+
 
                     static::DbQuery($sql);
                 }
@@ -472,7 +476,7 @@ $this->trace("****** continue");
    public function actCanNotPlay(): void
     {
         if($this->checkCanplay()){
-            throw new \BgaUserException(self::_("You can play recheck the boad and tile"), true);
+            throw new \BgaUserException(self::_("You can play check the boad and tiles"), true);
         }
         $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
 
@@ -550,6 +554,8 @@ $this->trace("****** continue");
 
                 //remove token from player
                 self::DbQuery(sprintf("UPDATE token SET token_player = NULL  WHERE token_id = '%s'", $data[0]));
+
+                $this->incStat(1,"TilePurchased",$player_id);
             }
 
         }
@@ -750,6 +756,9 @@ $this->trace("****** continue");
                 "tilesRemain" => $tilesRemain,
             )
         );
+        if ($player_data[$player_id]['player_no'] == self::getGameStateValue('last_player')){
+            $this->incStat(1,"turns_number");
+        }
 
 $this->dump("**********tilesNotPlayed",$tilesNotPlayed);
 
@@ -940,20 +949,20 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                         GROUP BY tile_color");
                 // multicolor
                 if (sizeof($colors) == 6){
-                    $prismeTile[$token["token_player"]]++;
+                    $prismeWheel[$token["token_player"]]++;
                 // bicolor
                 }else if (sizeof($colors) == 2){
-                     $bicolorTile[$token["token_player"]]++;
+                     $bicolorWheel[$token["token_player"]]++;
                 //simple can have 3 or 4 color
                 }else if ((sizeof($colors) == 3) || (sizeof($colors) == 4)){
-                     $simpleTile[$token["token_player"]]++;
+                     $simpleWheel[$token["token_player"]]++;
                 //error
                 }else{
-                     $msg="nb color:".sizeof($colors)." token id ".$token["id"];
+                    $msg="nb color:".sizeof($colors)." token id ".$token["id"];
                     $this->dump( "Error calculation point error", $msg);
                 }
 
-                if($this->getGameStateValue('triangleBonus') == 1){
+//                if($this->getGameStateValue('triangleBonus') == 1){
 
                     $tokenUpdated = self::getCollectionFromDb("SELECT token_id as id,token_player,
                     board_token_x as x , board_token_y as y,
@@ -962,15 +971,15 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                     FROM token WHERE token_id = ".$token["id"]);
 
                     $this->countTriangle($tokenUpdated[$token["id"]]);
-                }
+//                }
 
-                if($this->getGameStateValue('groupBonus') == 1){
+//                if($this->getGameStateValue('groupBonus') == 1){
                     $tokenUpdated = self::getCollectionFromDb("SELECT token_id as id,token_player,
                     board_token_x as x , board_token_y as y, tileGroup
                     FROM token WHERE token_id = ".$token["id"]);
 
                     $this->CheckAdjacentToken($tokenUpdated[$token["id"]]);
-                }
+//                }
             }
 
         }
@@ -978,41 +987,51 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
         foreach ($players as $player_id => $player) {
 
-            if($this->getGameStateValue('triangleBonus') == 1){
-                //can use directly result of countTriangle but "work" only the first time as we did not count twice the triangle
+            //can use directly result of countTriangle but "work" only the first time as we did not count twice the triangle
+            $triangeNumber=(self::getUniqueValueFromDB("SELECT count(token_id)
+                    FROM token
+                    WHERE token_player =".$player_id." and
+                    triangleDown = 1")+
+                    self::getUniqueValueFromDB("SELECT count(token_id)
+                    FROM token
+                    WHERE token_player =".$player_id." and
+                    triangleUp = 1"));
+            $this->setStat($triangeNumber,"Triangle",$player_id);
 
-                $triangeNumber[$player_id]=
-                        (self::getUniqueValueFromDB("SELECT count(token_id)
-                        FROM token
-                        WHERE token_player =".$player_id." and
-                        triangleDown = 1")+
-                        self::getUniqueValueFromDB("SELECT count(token_id)
-                        FROM token
-                        WHERE token_player =".$player_id." and
-                        triangleUp = 1"));
+            if($this->getGameStateValue('triangleBonus') == 1){
+                $triangeNumber[$player_id]=$triangeNumber;
+
             }else{
                 $triangeNumber[$player_id]=0;
             }
-            if($this->getGameStateValue('groupBonus') == 1){
-                $pointsGroup[$player_id]=self::getUniqueValueFromDB("
+
+            $group=self::getUniqueValueFromDB("
                         SELECT max(count) FROM (
                             SELECT count(token_id) as count
                             FROM token
                             WHERE token_player =".$player_id."
                             GROUP BY tileGroup) as tmp");
+
+            $this->setStat($group,"Group",$player_id);
+
+            if($this->getGameStateValue('groupBonus') == 1){
+                $pointsGroup[$player_id]=$group;
             }else{
                 $pointsGroup[$player_id]=0;
             }
 
-            $bicolorPoint[$player_id] = $bicolorTile[$player_id]." x 2 = ".$bicolorTile[$player_id]*2;
-            $prismePoint[$player_id] = $prismeTile[$player_id]." x 3 = ".$prismeTile[$player_id]*3;
+            $prismePoint[$player_id] = $prismeWheel[$player_id]." x 3 = ".$prismeWheel[$player_id]*3;
+            $bicolorPoint[$player_id] = $bicolorWheel[$player_id]." x 2 = ".$bicolorWheel[$player_id]*2;
             $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
 
+            $this->setStat($prismeWheel[$player_id],"PrismeWheel",$player_id);
+            $this->setStat($bicolorWheel[$player_id],"BicolorWheel",$player_id);
+            $this->setStat($simpleWheel[$player_id],"SimpleWheel",$player_id);
 
             $pointsTotal[$player_id]=
-                $simpleTile[$player_id]+
-                $bicolorTile[$player_id]*2+
-                $prismeTile[$player_id]*3+
+                $simpleWheel[$player_id]+
+                $bicolorWheel[$player_id]*2+
+                $prismeWheel[$player_id]*3+
                 $triangeNumber[$player_id]*2+
                 $pointsGroup[$player_id];
         }
@@ -1347,6 +1366,15 @@ $this->dump("hand",$result["hand"]);
         $this->setGameStateInitialValue( 'last_player', (int)$this->getUniqueValueFromDB("SELECT MAX(player_no) FROM player") );
 
         $this->setGameStateInitialValue( 'last_round_announced', 0 );
+
+
+        // Init game statistics.
+        //
+        $this->initStat("table", "turns_number", 0);
+        $this->initStat("player", "TilePurchased", 0);
+        $this->initStat("player", "TokenCaptured", 0);
+        $this->initStat("player", "WhellCompleted", 0);
+        $this->initStat("player", "TilePurchased", 0);
 
         $this->createTiles();
         $this->createFirstWheel();

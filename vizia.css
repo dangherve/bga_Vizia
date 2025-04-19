@@ -185,16 +185,6 @@
     text-align: center;
 }
 
-#remainingblock {
-    position: absolute;
-    right: 0px;
-    top: 0px;
-    padding-top: 5px;
-    padding-bottom: 5px;
-}
-#remainingtiles {
-    font-weight: bold;
-}
 
 #tile_to_play {
     display: inline-block;
@@ -240,7 +230,6 @@
 #commonTile div{
     margin-top: 10px;
     margin-bottom: 10px;
-
 }
 
 

@@ -54,7 +54,8 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter",
-    "ebg/scrollmap"
+    "./modules/scrollmapWithZoom"
+//    "ebg/scrollmap"
 ],
 function (dojo, declare) {
     return declare("bgagame.vizia", ebg.core.gamegui, {
@@ -194,15 +195,13 @@ function (dojo, declare) {
                     <a id="moveright" href="#"></a>
                     <a id="movedown" href="#"></a>
                 </div>
-<!--
-                <div id="carcafooter" class="whiteblock">
-                    <a href="#" id="shrinkdisplay">^&nbsp;&nbsp;{LB_SHRINK_DISPLAY}&nbsp;&nbsp;^</a>
-                    <a href="#" id="enlargedisplay">v&nbsp;&nbsp;{LB_ENLARGE_DISPLAY}&nbsp;&nbsp;v</a>
-                </div>
--->
             `);
+            this.scrollmap = new ebg.scrollmapWithZoom();
+//            this.scrollmap = new ebg.scrollmap(); // declare an object (this can also go in constructor)
+            this.scrollmap.zoom = 1;
+            this.scrollmap.btnsDivOnMap = false;
+            this.scrollmap.btnsDivPositionOutsideMap = ebg.scrollmapWithZoom.btnsDivPositionE.Right
 
-            this.scrollmap = new ebg.scrollmap(); // declare an object (this can also go in constructor)
             // Make map scrollable
             this.scrollmap.create( $('map_container'),$('map_scrollable'),$('map_surface'),$('map_scrollable_oversurface') ); // use ids from template
             this.scrollmap.setupOnScreenArrows( 150 ); // this will hook buttons to onclick functions with 150px scroll step

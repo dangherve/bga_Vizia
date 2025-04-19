@@ -1,1 +1,52 @@
-{}
+{
+  "table": {
+    "turns_number": {
+      "id": 10,
+      "name": "Number of turns",
+      "type": "int"
+    }
+  },
+  "player": {
+      "WhellCompleted": {
+      "id": 10,
+      "name": "Number of whell completed",
+      "type": "int"
+    },
+      "PrismeWheel": {
+      "id": 11,
+      "name": "Number of prisme wheel completed",
+      "type": "int"
+    },
+      "BicolorWheel": {
+      "id": 12,
+      "name": "Number of bicolor wheel completed",
+      "type": "int"
+    },
+      "SimpleWheel": {
+      "id": 13,
+      "name": "Number of simple wheel completed",
+      "type": "int"
+    },
+      "TokenCaptured": {
+      "id": 14,
+      "name": "Number of token captured",
+      "type": "int"
+    },
+      "TilePurchased": {
+      "id": 15,
+      "name": "Number of tile purchased",
+      "type": "int"
+    },
+      "Triangle": {
+      "id": 16,
+      "name": "Number of triangle made",
+      "type": "int"
+    },
+      "Group": {
+      "id": 17,
+      "name": "Size of the bigger group",
+      "type": "int"
+    }
+  }
+}
+
