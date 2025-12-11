@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `token` (
   `triangleDownRight` boolean COMMENT 'triangle Down Right',
   `triangleUpRight` boolean COMMENT 'triangle Up Right',
   `tileGroup` int(10) COMMENT 'tile groupe',
+  `tmpToken` boolean COMMENT 'tempoary token if player overflow is limit',
   PRIMARY KEY (`token_id`),
   UNIQUE KEY (`board_token_x`,`board_token_y`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;

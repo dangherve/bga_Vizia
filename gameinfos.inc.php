@@ -26,7 +26,7 @@ $gameinfos = [
     'bgg_id' => 94363,
 
     // Players configuration that can be played (ex: 2 to 4 players)
-    'players' => [1,2, 3, 4],
+    'players' => [2, 3, 4],
 
     // Suggest players to play with this number of players. Must be null if there is no such advice, or if there is only one possible player configuration.
     // NB: the automatic lobby will try first the lowest number of players if this is not specified. So you _have to_ specify this parameter if the lowest player number is not compatible with the default options.
@@ -75,8 +75,8 @@ $gameinfos = [
     'language_dependency' => false,
 
     // Colors attributed to players
-    //white black grey brown
-    'player_colors' => ["ffffff", "000000", "777777", "3f2107"],
+    //white black grey brown 3f2107
+    'player_colors' => ["ffffff", "000000", "777777", "8B4513"],
 
     // Favorite colors support : if set to "true", support attribution of favorite colors based on player's preferences (see reattributeColorsBasedOnPreferences PHP method)
     // NB: this parameter is used only to flag games supporting this feature; you must use (or not use) reattributeColorsBasedOnPreferences PHP method to actually enable or disable the feature.

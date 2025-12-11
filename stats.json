@@ -9,22 +9,22 @@
   "player": {
       "WhellCompleted": {
       "id": 10,
-      "name": "Number of whell completed",
+      "name": "Number of wheel completed",
       "type": "int"
     },
       "PrismeWheel": {
       "id": 11,
-      "name": "Number of prisme wheel completed",
+      "name": "Number of prisme wheel",
       "type": "int"
     },
       "BicolorWheel": {
       "id": 12,
-      "name": "Number of bicolor wheel completed",
+      "name": "Number of bicolor wheel",
       "type": "int"
     },
       "SimpleWheel": {
       "id": 13,
-      "name": "Number of simple wheel completed",
+      "name": "Number of simple wheel",
       "type": "int"
     },
       "TokenCaptured": {
@@ -45,6 +45,11 @@
       "Group": {
       "id": 17,
       "name": "Size of the bigger group",
+      "type": "int"
+    },
+      "Total": {
+      "id": 18,
+      "name": "total points",
       "type": "int"
     }
   }

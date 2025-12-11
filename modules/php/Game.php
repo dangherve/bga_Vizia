@@ -21,16 +21,7 @@ namespace Bga\Games\vizia;
 require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
 
 
-// Suit and card data, added additional classes (suit_N) for custom CSS
-const COLORS = [
-    0 => ['name' => 'blue'],
-    1 => ['name' => 'purple'],
-    2 => ['name' => 'red'],
-    3 => ['name' => 'orange'],
-    4 => ['name' => 'yellow'],
-    5 => ['name' => 'green'],
-];
-
+//first wheel  position
 const FIRST_WHEEL = [
     0 => ['x' => 2 , 'y' => 1 ],
     1 => ['x' => 1 , 'y' => 1 ],
@@ -56,16 +47,15 @@ class Game extends \Table
     {
         parent::__construct();
 
-
         $this->initGameStateLabels([
-            "lastCardPlay" => 10,
-            "numberOfToken" => 11,
-            "last_round_announced" => 12,
-            "last_player" => 13,
+            "numberOfToken" => 10,
+            "lastRoundAnnounced" => 11,
+            "lastPlayer" => 12,
+            "lowTile" => 13,
 
             //game option
             "multipleGame" =>100,
-            "CommunalTiles" =>101,
+            "communalTiles" =>101,
             "groupBonus" =>102,
             "triangleBonus" =>103,
             "capture" =>104,
@@ -87,11 +77,151 @@ class Game extends \Table
 
     }
 
+    /**
+     *
+     * Create tiles
+     *
+     */
+
+
+    public function createTiles() {
+        $sql = "INSERT INTO tile ( tile_color, tile_location) VALUES ";
+        $values = [];
+
+        $nbTile=$this->getGameStateValue('multipleGame')*12;
+
+        $this->setGameStateValue('numberOfToken',$nbTile);
+
+        foreach($this->translatedColors as $color_id => $color){
+            for($value=1; $value<=$nbTile; $value++) {
+                $values[] = "('".$color_id."', 'Deck')";
+            }
+        }
+
+        $sql .= implode( ',', $values );
+        static::DbQuery( $sql );
+
+    }
+
+    /**
+     *
+     * Draw personal tile for each player
+     *
+     */
+
+
+    public function initiatePlayerHand() {
+        $players = self::loadPlayersBasicInfos();
+
+        foreach ($players as $player_id => $player) {
+            $tiles = $this->pickTile(2);
+            static::DbQuery( "
+            UPDATE tile set tile_location = 'Player', tile_location_arg = ".$player_id."
+            WHERE tile_id = ".$tiles[0]." or tile_id = ".$tiles[1]);
+        }
+    }
+
+    /**
+     *
+     * Draw tile for Common
+     *
+     */
+
+
+    protected function commonTile(){
+        $tileNbr=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Common'");
+
+        $tileToPick=$this->getGameStateValue('communalTiles')-$tileNbr;
+
+        $tiles = $this->pickTile($tileToPick);
+
+        $sql="UPDATE tile SET tile_location = 'Common' where";
+
+        $first=true;
+        $tilePick = 0;
+        foreach ( $tiles as $tile ) {
+            if(!$first){
+                $sql.="or";
+            }else{
+                $first=false;
+            }
+            $sql.= " tile_id = ".$tile." ";
+            $tilePick++;
+        }
+        if($tilePick>0)
+            static::DbQuery( $sql );
+
+        $tileNbr=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
+
+        if($tileNbr<10){
+            self::setGameStateValue("lowTile", 1);
+            self::notifyAllPlayers( "lowTile", clienttranslate( 'Warning: less than 10 tiles remaining' ), array() );
+
+        }
+    }
+
+    /**
+     *
+     * Initialise the First wheel
+     *
+     */
+
+
+    public function createFirstWheel() {
+
+        $sql = "INSERT INTO `token` ( `board_token_x`, `board_token_y` ) VALUES ('0', '0')";
+        static::DbQuery( $sql );
+
+        //create initial wheel
+        foreach($this->translatedColors as $color_id => $color){
+            $tile_id = $this->getUniqueValueFromDB("SELECT tile_id
+            FROM tile WHERE
+            tile_color='".$color_id."'ORDER BY RAND() LIMIT 0,1");
+
+            $x=FIRST_WHEEL[$color_id]['x'];
+            $y=FIRST_WHEEL[$color_id]['y'];
+
+            static::DbQuery( "
+            UPDATE tile SET board_tile_x = ".$x.", board_tile_y = ".$y.", tile_location = 'board'
+            WHERE  tile_id = '".$tile_id."'");
+
+
+            $sql=sprintf("INSERT IGNORE INTO tokenTile (token_id, tile_id) VALUES (1, %s)",
+                $tile_id);
+
+            static::DbQuery($sql);
+
+        }
+
+    }
+
+    /**
+     *
+     * Pick n tile from the supply
+     *
+     */
+
+    protected function pickTile( $number ){
+
+        $tilesCollection = self::getCollectionFromDb( "SELECT tile_id id  FROM tile WHERE tile_location = 'Deck' ORDER BY RAND() LIMIT 0,".$number, false );
+
+        $tiles = [];
+
+        foreach ( $tilesCollection as $deck_tile_id => $tileId ) {
+            $tiles[] = $tileId['id'];
+        }
+
+        return $tiles;
+    }
+    /**
+     *
+     * Check if two tile can be place neighbour
+     *
+     */
 
     public function CheckColor( $colorA, $colorB){
 
         if( $colorB == null){
-            $this->trace("tile empty");
             return true;
         }
 
@@ -104,7 +234,18 @@ class Game extends \Table
         return false;
     }
 
-    //test should be done in UI also
+    /**
+     *
+     * Verify tile placement throw error if can be place here
+     * check if left, right and under or over tile(s) permit to put our tile at the correct place
+     * so if one of these adjacent did not permit throw an error
+     * also thorw an erro if no adjacent tile
+     *
+     * These should be forbid by UI in the future
+     *
+     * @throws BgaUserException
+     */
+
     public function CheckTilePlacement(int $id, int $x , int $y){
         $TileCurentColor = $this->getUniqueValueFromDB("SELECT tile_color
                 FROM tile WHERE tile_id = ".$id);
@@ -129,9 +270,6 @@ class Game extends \Table
 
 
             if(!$this->CheckColor($TileCurentColor,$TileDownColor)){
-$this->trace("************************");
-$message=$x." ".$y." ".$TileCurentColor." ".$TileDownColor;
-$this->dump("error down color",$message);
                 throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement incorrect down color"), true);
             }
         }else{
@@ -151,27 +289,18 @@ $this->dump("error down color",$message);
              ($TileRightColor == null) &&
              ($TileDownColor == null) && ($TileUpColor == null)){
 
-            $this->trace("*****************************************************");
-            $msg= $x." ".$y;
-
-            $this->dump("erreur",$msg);
-
-            $debug= self::getCollectionFromDb("SELECT board_tile_x, board_tile_y, tile_color FROM tile where tile_location='Board'");
-
-$msg = "\n\n\n";
-foreach($debug as $debugTile){
-    $msg.="[x:".$debugTile["board_tile_x"]."\ty:".$debugTile["board_tile_y"]."\tc:".$debugTile["tile_color"]."]\n";
-}
-
-
-            $this->dump("msg",$msg);
-  $this->dump("debug",$debug);
-
             throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement no adjacent tile"), true);
         }
 
     }
 
+    /**
+     *
+     * Check if the wheel is completed
+     *
+     * execute capture "token" when enable
+     *
+     */
 
     public function CheckWheelCompleted( int $x1, int $x2, int $x3, int $y1, int $y2){
 
@@ -193,8 +322,8 @@ foreach($debug as $debugTile){
             $y=min($y1, $y2);
 
             $sql=sprintf(
-                "INSERT IGNORE INTO token (token_player, board_token_x, board_token_y)
-                VALUES (%s, %s, %s)",
+                "INSERT IGNORE INTO token (token_player, board_token_x, board_token_y,tmpToken)
+                VALUES (%s, %s, %s, true)",
                 $player_id,
                 $x,
                 $y,
@@ -202,13 +331,11 @@ foreach($debug as $debugTile){
 
             $this->incStat(1,"WhellCompleted",$player_id);
 
-
             static::DbQuery($sql);
 
             $sql="SELECT token_id
                 FROM token WHERE board_token_x = ".$x." and board_token_y = ".$y;
 
-//TOKEN LIMIT NOT IMPLEMENTED
             $tokenId = $this->getUniqueValueFromDB($sql);
             foreach ($tiles as $tile){
 
@@ -220,31 +347,15 @@ foreach($debug as $debugTile){
 
             }
 
-            $maxToken=(int)$this->getUniqueValueFromDB("SELECT max(nb) FROM (
-                SELECT count(token_id) as nb
-                FROM `token` GROUP BY token_player) AS tmp; ");
-
-            $tokenLimit=$this->getGameStateValue('numberOfToken');
-
-            if($maxToken>=$tokenLimit){
-                self::notifyAllPlayers( "game_end_trigger", clienttranslate( 'Warning: The game will finish at the end of this round' ), array() );
-                self::setGameStateValue("last_round_announced", 1);
-            }
-
             $this->token[]=[
                 'id' => $tokenId,
                 'player' => $player_id,
                 'x' => $x,
                 'y' => $y];
 
-
-
             if($this->getGameStateValue('capture') == 1){
-$message=$x." ".$y;
 
-$this->dump("*************************** CAPTURE ***********",$message);
                 $this->CheckTokensCapture($x, $y);
-$this->trace("*************************** end CAPTURE ***********");
 
             }
 
@@ -252,10 +363,15 @@ $this->trace("*************************** end CAPTURE ***********");
 
     }
 
-//probably a better way to do it
+    /**
+     *
+     * Check if current tile finish the three possible wheel
+     *
+     * probably a better way to do it
+     *
+     */
+
     public function CheckWhellsCompleted( int $x , int $y){
-$msg=$x." ".$y;
-$this->dump("CheckWhellsCompleted ", $msg);
 
         if( ( $x + $y ) %2 == 0){
 
@@ -281,13 +397,41 @@ $this->dump("CheckWhellsCompleted ", $msg);
         }
     }
 
+    /**
+     *
+     * Check if current token capture one of the six possible token
+     *
+     * probably a better way to do it
+     *
+     */
+
+
+    public function CheckTokensCapture( int $x , int $y){
+        $this->CheckTokenCapture(($x-1), ($y-1));
+        $this->CheckTokenCapture(($x+1), ($y-1));
+        $this->CheckTokenCapture(($x+2), ($y));
+        $this->CheckTokenCapture(($x+1), ($y+1));
+        $this->CheckTokenCapture(($x-1), ($y+1));
+        $this->CheckTokenCapture(($x-2), ($y));
+    }
+
+    /**
+     *
+     * Check if a token can be captured
+     *
+     * ie all 6 adjacent token are present and it is alone (no sibling with the same color)
+     * no token can also be capture
+     *
+     *
+     */
+
     public function CheckTokenCapture( int $x , int $y){
         $token = $this->getObjectFromDB("SELECT token_player, token_id
         FROM token WHERE board_token_x = ".($x)." and board_token_y = ".($y));
 
         if($token != null){
 
-                $tokenId=$token["token_id"];
+            $tokenId=$token["token_id"];
 
             if ($token["token_player"] != null){
                 $tokenPlayerTest="token_player = ".$token["token_player"];
@@ -306,8 +450,6 @@ $this->dump("CheckWhellsCompleted ", $msg);
                 (board_token_x = ".($x-1)." AND board_token_y = ".($y+1).") or
                 (board_token_x = ".($x+1)." AND board_token_y = ".($y+1).")");
 
-$this->dump("adjacentTtokenNumber",$adjacentTtokenNumber);
-
             if ($adjacentTtokenNumber == 6) {
 
                 $sameColorTokenNumber=(int)$this->getUniqueValueFromDB("SELECT count(token_id)
@@ -320,7 +462,6 @@ $this->dump("adjacentTtokenNumber",$adjacentTtokenNumber);
                     (board_token_x = ".($x+2)." AND board_token_y = ".($y)."  ) or
                     (board_token_x = ".($x-1)." AND board_token_y = ".($y+1).") or
                     (board_token_x = ".($x+1)." AND board_token_y = ".($y+1)."))");
-$this->dump("sameColorTokenNumber",$sameColorTokenNumber);
 
                 if ($sameColorTokenNumber == 1) {
 
@@ -332,11 +473,11 @@ $this->dump("sameColorTokenNumber",$sameColorTokenNumber);
                         'x' => $x,
                         'y' => $y];
 
-                    $sql="UPDATE token SET token_player = ".$newPlayer."
+                    $sql="UPDATE token SET token_player = ".$newPlayer.",
+                            tmpToken = true
                             WHERE token_id = ".$tokenId;
 
-                    $this->incStat(1,"TokenCaptured",$player_id);
-
+                    $this->incStat(1,"TokenCaptured",$newPlayer);
 
                     static::DbQuery($sql);
                 }
@@ -348,26 +489,14 @@ $this->dump("sameColorTokenNumber",$sameColorTokenNumber);
         }
     }
 
-    public function CheckTokensCapture( int $x , int $y){
-$this->trace("******1*********");
-        $this->CheckTokenCapture(($x-1), ($y-1));
-$this->trace("******2*********");
-        $this->CheckTokenCapture(($x+1), ($y-1));
-$this->trace("******3*********");
-        $this->CheckTokenCapture(($x+2), ($y));
-$this->trace("******4*********");
-        $this->CheckTokenCapture(($x+1), ($y+1));
-$this->trace("******5*********");
-        $this->CheckTokenCapture(($x-1), ($y+1));
-$this->trace("******6*********");
-        $this->CheckTokenCapture(($x-2), ($y));
-$this->trace("******DONE*********");
-    }
+    /**
+     *
+     * Check adjacent token is owned by the same player if yes set it to the same groupId
+     *
+     * probably a better way to do it
+     *
+     */
 
-
-
-
-//probably a better way to do it
     public function CheckAdjacentToken( $token){
         $x=$token["x"];
         $y=$token["y"];
@@ -409,6 +538,422 @@ $this->trace("******DONE*********");
 
     }
 
+    /**
+     *
+     * Check if player can play
+     *
+     * two version need to compare performance to know wich one to keep
+     *
+     */
+
+    public function checkCanplay(): bool {
+        $canPlay = false;
+
+        $table_size=self::getObjectFromDB("SELECT
+            max( board_tile_x ) as xMax,
+            min( board_tile_x ) as xMin,
+            max( board_tile_y ) as yMax,
+            min( board_tile_y ) as yMin
+            FROM tile WHERE tile_location = 'Board'",true);
+
+        $xMin = $table_size["xMin"]-1;
+        $xMax = $table_size["xMax"]+1;
+        $yMin = $table_size["yMin"]-1;
+        $yMax = $table_size["yMax"]+1;
+
+        $tiles1 = self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
+            FROM tile
+            WHERE tile_location = 'Board'");
+
+        for($i=$xMin;$i<=$xMax;$i++){
+            for($j=$yMin;$j<=$yMax;$j++){
+             $tilesOnBoard[$i][$j]=null;
+            }
+        }
+
+        foreach ($tiles1 as $tile) {
+            $x=$tile['x'];
+            $y=$tile['y'];
+            $tilesOnBoard[$x][$y]=$tile['color'];
+        }
+
+        $result["tiles"] = self::getCollectionFromDb("SELECT  tile_color
+            FROM tile
+            WHERE tile_location = 'common' OR
+            (tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId().")
+            GROUP BY tile_color" );
+
+        $x=$xMin;
+        $y=$yMin;
+
+        while ((!$canPlay) && ($x<=$xMax) && ($y<=$yMax))  {
+            if($tilesOnBoard[$x][$y] == null){
+
+                foreach ($result["tiles"] as $tile) {
+
+                    $test1=false;
+                    $test2=false;
+                    $test3=false;
+                    if (isset($tilesOnBoard[$x-1][$y]))
+                        $test1=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x-1][$y]);
+
+                    if (isset($tilesOnBoard[$x+1][$y]))
+                        $test2=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x+1][$y]);
+
+                    if( ( $x + $y ) %2 == 0){
+                        if (isset($tilesOnBoard[$x][$y+1]))
+                        $test3=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x][$y+1]);
+
+                    }else{
+                        if (isset($tilesOnBoard[$x][$y-1]))
+                            $test3=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x][$y-1]);
+                    }
+                    if( $test1 || $test2 || $test3 )
+                        $canPlay=true;
+
+                }
+            }
+
+            $x++;
+            if($x>$xMax){
+                $x=$xMin;
+                $y++;
+            }
+
+        }
+        return $canPlay;
+    }
+
+    public function checkCanplay2(): bool {
+        $canPlay = false;
+
+        $places=$this->getPlaces(self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
+                FROM tile
+                WHERE tile_location = 'Board'"));
+
+        $tiles = self::getCollectionFromDb("SELECT  tile_color
+            FROM tile
+            WHERE tile_location = 'common' OR
+            (tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId().")
+            GROUP BY tile_color" );
+
+        foreach ($places as $place) {
+            $x=$place["x"];
+            $y=$place["y"];
+
+            $color1=self::getUniqueValueFromDB("
+                SELECT tile_color
+                FROM tile
+                WHERE board_tile_x =".($x-1)." and board_tile_y =".$y);
+
+            $color2=self::getUniqueValueFromDB("
+                SELECT tile_color
+                FROM tile
+                WHERE board_tile_x =".($x+1)." and board_tile_y =".$y);
+
+            if( ( $x + $y ) %2 == 0){
+                $color3=self::getUniqueValueFromDB("
+                    SELECT tile_color
+                    FROM tile
+                    WHERE board_tile_x =".$x." and board_tile_y =".($y+1));
+            }else{
+                $color3=self::getUniqueValueFromDB("
+                    SELECT tile_color
+                    FROM tile
+                    WHERE board_tile_x =".$x." and board_tile_y =".($y-1));
+            }
+
+            foreach ($tiles as $tile) {
+                    $test1=false;
+                    $test2=false;
+                    $test3=false;
+
+                    if ($color1!=null){
+                        $test1=$this->CheckColor($tile["tile_color"] ,$color1);
+                    }
+                    if ($color2!=null){
+                        $test2=$this->CheckColor($tile["tile_color"] ,$color2);
+                    }
+
+                    if ($color3!=null){
+                        $test3=$this->CheckColor($tile["tile_color"] ,$color3);
+                    }
+
+                    if( $test1 || $test2 || $test3 ){
+                        $canPlay=true;
+                        break;
+                    }
+            }
+            if($canPlay)
+                break;
+        }
+
+        return $canPlay;
+    }
+
+    /**
+     *
+     * create location where tile can be placed
+     *
+     */
+
+    protected function getPlaces(array $tiles): array{
+        $places=[];
+        foreach ($tiles as $tile) {
+
+            $x=$tile['x'];
+            $y=$tile['y'];
+
+            // Places array creation
+
+            if( ( $x + $y ) %2 == 0){
+                $places_coords = array( ($x+1).'x'.$y, ($x-1).'x'.$y, $x.'x'.($y+1) );
+            }else{
+                $places_coords = array( ($x+1).'x'.$y, ($x-1).'x'.$y, $x.'x'.($y-1) );
+            }
+
+            $places[$x.'x'.$y] = 0;
+
+            foreach( $places_coords as $coord )
+            {
+                if( ! isset( $places[ $coord ] ) )
+                    $places[ $coord ] = 1;
+            }
+        }
+
+        $emptyPlaces = array();
+        foreach( $places as $coord => $value )
+        {
+            if( $value == 1 )
+            {
+                $xpos = strpos( $coord, 'x' );
+
+                $x = substr( $coord, 0, $xpos );
+                $y = substr( $coord, $xpos+1 );
+                $emptyPlaces[] = array( 'x' => $x, 'y' => $y ,'possibleColor' => $this->detectPossibleColor((int)$x,(int)$y));
+            }
+        }
+        return $emptyPlaces;
+    }
+
+    protected function detectPossibleColor(int $x, int $y): array{
+        $TileLeftColor = $this->getUniqueValueFromDB("SELECT tile_color
+                FROM tile WHERE board_tile_x = ".($x-1)." and board_tile_y = ".$y);
+
+        if( $TileLeftColor == null){
+            $possibleColor1=array(0,1,2,3,4,5);
+        }else{
+            $possibleColor1[0]= ($TileLeftColor+1)%6;
+            $possibleColor1[1]= ($TileLeftColor+5)%6;
+        }
+
+        $TileRightColor = $this->getUniqueValueFromDB("SELECT tile_color
+                FROM tile WHERE board_tile_x = ".($x+1)." and board_tile_y = ".$y);
+
+        if( $TileRightColor == null){
+            $possibleColor2=array(0,1,2,3,4,5);
+        }else{
+            $possibleColor2[0]= ($TileRightColor+1)%6;
+            $possibleColor2[1]= ($TileRightColor+5)%6;
+        }
+
+
+        if( ( $x + $y ) %2 == 0){
+            $TileDownColor = $this->getUniqueValueFromDB("SELECT tile_color
+                FROM tile WHERE board_tile_x = ".$x." and board_tile_y = ".($y+1));
+
+            if( $TileDownColor == null){
+                $possibleColor3=array(0,1,2,3,4,5);
+            }else{
+                $possibleColor3[0]= ($TileDownColor+1)%6;
+                $possibleColor3[1]= ($TileDownColor+5)%6;
+            }
+        }else{
+            $TileUpColor = $this->getUniqueValueFromDB("SELECT tile_color
+                FROM tile WHERE board_tile_x = ".$x." and board_tile_y = ".($y-1));
+            if( $TileUpColor == null){
+                $possibleColor3=array(0,1,2,3,4,5);
+            }else{
+                $possibleColor3[0]= ($TileUpColor+1)%6;
+                $possibleColor3[1]= ($TileUpColor+5)%6;
+            }
+        }
+
+        $result = array_values(array_intersect($possibleColor1, $possibleColor2, $possibleColor3));
+/*
+$this->dump("possibleColor1",$possibleColor1);
+$this->dump("possibleColor2",$possibleColor2);
+$this->dump("possibleColor3",$possibleColor3);
+*/
+$this->dump("result",$result);
+
+        return $result;
+    }
+
+
+
+    /**
+     *
+     * Detect purchasable tile tile with only one adjacent tile
+     *
+     */
+
+    public function getPurchasableTiles(): array {
+        $purchasableTiles=[];
+        if (self::getGameStateValue('purchase') ==1 ){
+            $table_size=self::getObjectFromDB("SELECT
+                max( board_tile_x ) as xMax,
+                min( board_tile_x ) as xMin,
+                max( board_tile_y ) as yMax,
+                min( board_tile_y ) as yMin
+                FROM tile WHERE tile_location = 'Board'",true);
+
+            $result["tiles"] = self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
+                FROM tile
+                WHERE tile_location = 'Board'");
+
+            $xMin = $table_size["xMin"]-1;
+            $xMax = $table_size["xMax"]+1;
+            $yMin = $table_size["yMin"]-1;
+            $yMax = $table_size["yMax"]+1;
+
+            for($i=$xMin;$i<=$xMax;$i++){
+                for($j=$yMin;$j<=$yMax;$j++){
+                 $tilesOnBoard[$i][$j]["empty"]=1;
+                }
+            }
+
+            foreach ($result["tiles"] as $tile) {
+                $x=$tile['x'];
+                $y=$tile['y'];
+
+                $tilesOnBoard[$x][$y]["empty"]=0;
+                $tilesOnBoard[$x][$y]["id"]=$tile['id'];
+            }
+            $tilesOnBoardString="***************************\n";
+            for($i=$xMin;$i<$xMax;$i++){
+                $tilesOnBoardString.="\t\t".$i;
+            }
+             $tilesOnBoardString.="\n\n";
+
+            for($j=$yMin;$j<=$yMax;$j++){
+                $tilesOnBoardString.=$j."\t";
+                for($i=$xMin;$i<=$xMax;$i++){
+                    $tilesOnBoardString.="\t".$tilesOnBoard[$i][$j]["empty"];
+                }
+                $tilesOnBoardString.="\n";
+            }
+
+            foreach ($result["tiles"] as $tile) {
+                $x=$tile['x'];
+                $y=$tile['y'];
+                $coord=$x." ".$y;
+
+                if( ( $x + $y ) %2 == 0){
+
+                    $resultat = $tilesOnBoard[($x+1)][$y]["empty"] +
+                    $tilesOnBoard[($x-1)][$y]["empty"] +
+                    $tilesOnBoard[$x][($y+1)]["empty"];
+
+                }else{
+
+                    $resultat = $tilesOnBoard[($x+1)][$y]["empty"] +
+                    $tilesOnBoard[($x-1)][$y]["empty"] +
+                    $tilesOnBoard[$x][($y-1)]["empty"];
+
+                }
+
+                if($resultat == 2)
+                    $purchasableTiles[]=$tilesOnBoard[$x][$y]["id"];
+
+            }
+
+        }
+
+        return $purchasableTiles;
+
+    }
+
+    /**
+     * Player action token
+     *
+     * Player need to remove n token that he did not have real game he can only
+     * place 12 token per game but this adaption place it automaticaly so to keep
+     * to the rule we have to remove the excess
+     *
+     * @throws BgaUserException
+     */
+
+    public function actToken(string $token): void{
+        $maxToken=(int)$this->getUniqueValueFromDB("SELECT count(token_id) as nb
+            FROM `token`
+            WHERE token_player = ".$this->getActivePlayerId()."
+            GROUP BY token_player ");
+
+        $tokenLimit=$this->getGameStateValue('numberOfToken');
+
+        $tokenToRemove=$maxToken-$tokenLimit;
+
+        $list_token = explode(';',rtrim($token,";"));
+
+        $nbToken=sizeof($list_token);
+
+        if($nbToken>$tokenToRemove){
+            throw new \BgaUserException(self::_("Unexpected Error: you did not remove enought token"), true);
+        }
+
+        if($nbToken<$tokenToRemove){
+            throw new \BgaUserException(self::_("Unexpected Error: you removed too much token"), true);
+        }
+
+        //explode token use remove last semi colon
+
+        $removeToken=[];
+
+        foreach ($list_token as $token){
+            //token/tile data
+            $data  = explode(',',$token);
+
+            $removeToken[]=$data[0];
+
+            //remove token
+            self::DbQuery(sprintf("UPDATE token SET token_player = NULL  WHERE token_id = '%s'", $data[0]));
+
+        }
+
+        self::DbQuery("UPDATE token SET tmpToken = false  WHERE tmpToken = true");
+
+        $this->notifyAllPlayers('removeToken',
+            clienttranslate($this->getActivePlayerName()." remove token "),
+            [
+                'removeToken' => $removeToken,
+            ]);
+
+        $this->gamestate->nextState("nextPlayer");
+    }
+
+ public function actForcePass(): void{
+        $this->gamestate->nextState("nextPlayer");
+}
+
+public function actDebugCheckTile(string $x, string $y): void
+{
+
+
+$this->debug("*******************************DEBUG place**********************************");
+    $res=$this->detectPossibleColor((int)$x, (int)$y);
+$msg="check tile x=".$x." y=".$y;
+if(count($res) ==2)
+    $msg.=" color1:".$res[0]." color2:".$res[1];
+elseif(count($res) ==1)
+    $msg.="color:".$res[0];
+$this->debug($msg);
+    $this->notifyAllPlayers('checkTile', //DEBUG
+            $msg,
+            [
+                'res' => $res,
+            ]);
+}
 
     /**
      * Player action maint fnction
@@ -422,99 +967,6 @@ $this->trace("******DONE*********");
      * @throws BgaUserException
      */
 
-
-    public function stCheckCanPlay(): void {
-
-        if(!$this->checkCanplay()){
-$this->trace("*********** can not play");
-
-            $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
-
-            static::DbQuery($sql);
-
-            $message=$this->getActivePlayerName().' can not play at all ';
-
-            $privateTile= self::getObjectListFromDB("SELECT tile_color color
-                    FROM tile
-                    WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
-
-            if (sizeof($privateTile) == 0){
-                $message.=" and do no not have any private tile";
-            }elseif(sizeof($privateTile) == 1){
-                $message.=" and has a";
-                $message.=COLORS[$privateTile[0]['color']]["name"]." tile ";
-                $message.=" in his personal tile";
-            }elseif(sizeof($privateTile) == 2){
-                $message.=" and has a ";
-                $message.=COLORS[$privateTile[0]['color']]["name"]." tile and a ";
-                $message.=COLORS[$privateTile[1]['color']]["name"]." tile";
-                $message.=" in his personal tile";
-            }else{
-                //error
-                $this->dump( "More than 2 private tile should not occure", $privateTile);
-            }
-
-            //send new tiles and places
-            $this->notifyAllPlayers(
-                'canNotPlay',clienttranslate($message),
-                [
-                ]
-            );
-
-            $this->gamestate->nextState("nextPlayer");
-
-        }else{
-$this->trace("****** continue");
-
-            $this->gamestate->nextState("playerTurn");
-        }
-
-//            $this->gamestate->nextState("playerTurn");
-
-     }
-
-   public function actCanNotPlay(): void
-    {
-        if($this->checkCanplay()){
-            throw new \BgaUserException(self::_("You can play check the boad and tiles"), true);
-        }
-        $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
-
-        static::DbQuery($sql);
-
-        $message=$this->getActivePlayerName().' can not play at all ';
-
-        $privateTile= self::getObjectListFromDB("SELECT  tile_color color
-                FROM tile
-                WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
-
-        if (sizeof($privateTile) == 0){
-            $message.=" and do no not have any private tile";
-        }elseif(sizeof($privateTile) == 1){
-            $message.=" and has a";
-            $message.=COLORS[$privateTile[0]['color']]["name"]." tile ";
-            $message.=" in his personal tile";
-        }elseif(sizeof($privateTile) == 2){
-            $message.=" and has a ";
-            $message.=COLORS[$privateTile[0]['color']]["name"]." tile and a ";
-            $message.=COLORS[$privateTile[1]['color']]["name"]." tile";
-            $message.=" in his personal tile";
-        }else{
-            //error
-            $this->dump( "More than 2 private tile should not occure", $privateTile);
-        }
-
-        //send new tiles and places
-        $this->notifyAllPlayers(
-            'canNotPlay',clienttranslate($message),
-            [
-            ]
-        );
-
-        $this->gamestate->nextState("nextPlayer");
-    }
-
-
     public function actPlay(string $tilePlayed, string $tilePlayer, string $tokenSpent): void
     {
 
@@ -522,7 +974,7 @@ $this->trace("****** continue");
             throw new \BgaUserException(self::_("Unexpected Error: you are not the active player"), true);
         }
 
-        $message=$this->getActivePlayerName().' play ';
+        $message='${player_name} play ';
 
         //need to play at leas one tile
         if(strlen($tilePlayed)==0){
@@ -555,7 +1007,7 @@ $this->trace("****** continue");
                 //remove token from player
                 self::DbQuery(sprintf("UPDATE token SET token_player = NULL  WHERE token_id = '%s'", $data[0]));
 
-                $this->incStat(1,"TilePurchased",$player_id);
+                $this->incStat(1,"TilePurchased",$this->getActivePlayerId());
             }
 
         }
@@ -589,29 +1041,13 @@ $this->trace("****** continue");
 
             $this->CheckWhellsCompleted( $tiles[$tileId]["x"], $tiles[$tileId]["y"]);
 
-            $message.=COLORS[$tileColor]["name"]." tile ";
+
+            $tilesPlayedUI[]=['id' => $tileColor, 'text' => $this->translatedColors[$tileColor] ];
+
+//            $message.= $this->translatedColors[$tileColor]." tile ";
 
         }
-
-        //create empty place
-        foreach ($tiles as $tile){
-
-            $x = $tile["x"];
-            $y = $tile["y"];
-
-            if( ( $x + $y ) %2 == 0){
-                $places_coords = array( ($x+1).'x'.$y, ($x-1).'x'.$y, $x.'x'.($y+1) );
-            }else{
-                $places_coords = array( ($x+1).'x'.$y, ($x-1).'x'.$y, $x.'x'.($y-1) );
-            }
-
-            $places[$x.'x'.$y] = 0;
-
-            foreach( $places_coords as $coord ){
-                if( ! isset( $places[ $coord ] ) )
-                    $places[ $coord ] = 1;
-            }
-        }
+        $message.='${tilesPlayedUI} ';
 
         //update private tile
         if(strlen($tilePlayer)!=0){
@@ -633,44 +1069,40 @@ $this->trace("****** continue");
                 $tileColor = $this->getUniqueValueFromDB("SELECT tile_color
                 FROM tile WHERE tile_id = ".$tileId);
 
-                $message.= COLORS[$tileColor]["name"]." ";
+                $tilesTakenUI[]=['id' => $tileColor, 'text' => $this->translatedColors[$tileColor] ];
+
+//                $message.= $this->translatedColors[$tileColor]." ";
 
             }
-            $message.="to his reserve";
+            $message.='${tilesTakenUI} to his reserve';
+        }else{
+            $tilesTakenUI=Null;
         }
 
-        $placesFinal = array();
-        foreach( $places as $coord => $value )
-        {
-            if( $value == 1 )
-            {
-                $xpos = strpos( $coord, 'x' );
-
-                $x = substr( $coord, 0, $xpos );
-                $y = substr( $coord, $xpos+1 );
-                $placesFinal[] = array( 'x' => $x, 'y' => $y );
-            }
-        }
 
         //send removed token and tile
         if(strlen($tokenSpent)!=0){
-            $this->notifyAllPlayers(
-            'purchased',clienttranslate($this->getActivePlayerName()." bought tile "),
-            [
-                'player_id' => $this->getActivePlayerId(),
-                'tileToRemove' => $tileToRemove,
-                'tokenToRemove' => $tokenToRemove,
-            ]
-            );
+            $this->notifyAllPlayers('purchased',
+                clienttranslate("${player_name} bought tile "),
+                [
+                    'player_name' => $this->getActivePlayerName(),
+                    'player_id' => $this->getActivePlayerId(),
+                    'tileToRemove' => $tileToRemove,
+                    'tokenToRemove' => $tokenToRemove,
+                ]
+                );
         }
 
         //send new tiles and places
-        $this->notifyAllPlayers(
-            'playedTile',clienttranslate($message),
+        $this->notifyAllPlayers('playedTile',
+            clienttranslate($message),
             [
+                'player_name' => $this->getActivePlayerName(),
+                'tilesPlayedUI' => $tilesPlayedUI,
+                'tilesTakenUI' => $tilesTakenUI,
                 'player_id' => $this->getActivePlayerId(),
                 'tiles' => $tiles,
-                'places' => $placesFinal,
+                'places' => $this->getPlaces($tiles),
             ]
         );
 
@@ -678,32 +1110,34 @@ $this->trace("****** continue");
         if (self::getGameStateValue('purchase') ==1 ){
             $purchasableTile=$this->getPurchasableTiles();
 
-            $this->notifyAllPlayers(
-                'getPurchasableTiles',"",$purchasableTile
-                );
+            $this->notifyAllPlayers('getPurchasableTiles',
+                "",
+                $purchasableTile);
         }
 
         //send new token
         if( count($this->token) != 0)
-        $this->notifyAllPlayers(
-            'newToken',clienttranslate($this->getActivePlayerName()." completed a wheel ".$x." ".$y),
+        $this->notifyAllPlayers('newToken',
+            clienttranslate('${player_name} completed a wheel '),
             [
+                'player_name' => $this->getActivePlayerName(),
                 'token' => $this->token,
             ]
         );
 
         //send capture token
         if( count($this->captureToken) != 0)
-            $this->notifyAllPlayers(
-                'captureToken',clienttranslate($this->getActivePlayerName()." capture a token ".$x." ".$y),
+            $this->notifyAllPlayers('captureToken',
+                clienttranslate("${player_name} capture a token "),
                 [
+                    'player_name' => $this->getActivePlayerName(),
                     'token' => $this->captureToken,
                 ]
             );
 
 
         // at the end of the action, move to the next state
-        $this->gamestate->nextState("nextPlayer");
+        $this->gamestate->nextState("checkToken");
     }
 
     /**
@@ -713,14 +1147,25 @@ $this->trace("****** continue");
      *
      * This method is called each time we are in a game state with the "updateGameProgression" property set to true.
      *
+     * TO DO take into account token
+     *
      * @return int
      * @see ./states.inc.php
      */
     public function getGameProgression()
     {
-        // TODO: compute and return the game progression
 
-        return 0;
+        $tileInDeck=$this->getUniqueValueFromDB("SELECT COUNT(*) FROM tile WHERE tile_location = 'Deck'");
+
+        //do not use constante as we offer to use multiple game
+        //but we could store instead in a global state but is use also DB so
+        //probably no big improvement in term of performance as is also store in database
+        $totalTile=$this->getUniqueValueFromDB("SELECT COUNT(*) FROM tile")-6;
+
+        $progression = $tileInDeck/$totalTile*100;
+
+        return $progression;
+
     }
 
     /**
@@ -728,6 +1173,7 @@ $this->trace("****** continue");
      *
      * The action method of state `nextPlayer` is called everytime the current game state is set to `nextPlayer`.
      */
+
     public function stNextPlayer(): void {
         // Retrieve the active player ID.
         $player_id = (int)$this->getActivePlayerId();
@@ -745,30 +1191,36 @@ $this->trace("****** continue");
                 FROM tile
                 WHERE tile_location = 'Common'");
 
-        $tilesRemain=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
+        $tilesRemain=$this->getObjectListFromDB("
+            SELECT COUNT(tile_id)
+            FROM tile
+            WHERE tile_location = 'Deck'
+            GROUP BY tile_color");
 
-        $tilesNotPlayed=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck' or tile_location = 'common' or tile_location = 'Player'");
+        $tilesNotPlayed=(int)$this->getUniqueValueFromDB("
+            SELECT COUNT(tile_id)
+            FROM tile
+            WHERE tile_location = 'Deck' or tile_location = 'common' or tile_location = 'Player'");
 
-
-        $this->notifyAllPlayers(
-            'nextPlayer',"",array(
+        $this->notifyAllPlayers('nextPlayer',
+            "",
+            array(
                 "commonTile" => $common,
                 "tilesRemain" => $tilesRemain,
             )
         );
-        if ($player_data[$player_id]['player_no'] == self::getGameStateValue('last_player')){
+
+        if ($player_data[$player_id]['player_no'] == self::getGameStateValue('lastPlayer')){
             $this->incStat(1,"turns_number");
         }
 
-$this->dump("**********tilesNotPlayed",$tilesNotPlayed);
-
-        if(($tilesNotPlayed == 0) || ((self::getGameStateValue('last_round_announced') == 1) && ($player_data[$player_id]['player_no'] == self::getGameStateValue('last_player')))){
-$this->trace("**********score");
+        if( ($tilesNotPlayed == 0) ||
+            ((self::getGameStateValue('lastRoundAnnounced') == 1) &&
+            ($player_data[$player_id]['player_no'] == self::getGameStateValue('lastPlayer')))){
 
             $this->gamestate->nextState("calculateScore");
 
         }else{
-$this->trace("**********continue");
 
             if(sizeof($common) == 0){
                 $this->trace("need check player tile");
@@ -781,8 +1233,8 @@ $this->trace("**********continue");
                     WHERE tile_location = 'Player' and tile_location_arg = ".$player_id);
 
                     if($privateTileRemain == 0){
-                        $this->notifyAllPlayers(
-                            'passPlayer',clienttranslate($this->getActivePlayerName()." did not have any tile left his turn is skipped"),
+                        $this->notifyAllPlayers('passPlayer',
+                            clienttranslate($this->getActivePlayerName()." did not have any tile left his turn is skipped"),
                             [
                             ]
                         );
@@ -795,21 +1247,136 @@ $this->trace("**********continue");
         }
     }
 
-    public function countTriangle($token) {
-/*
-UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRight = null ,triangleUp = null ,  triangleUpLeft = null, triangleUpRight = null
-*/
 
+    /**
+     *
+     * Check token number to trigger end of game if necessary
+     * and remove excess token state
+     *
+     */
+
+    public function stCheckToken(): void{
+
+        $maxToken=(int)$this->getUniqueValueFromDB("SELECT count(token_id) as nb
+            FROM `token`
+            WHERE token_player = ".$this->getActivePlayerId()."
+            GROUP BY token_player ");
+
+        $tokenLimit=$this->getGameStateValue('numberOfToken');
+        if($tokenLimit==0){
+            $sql="UPDATE token SET tmpToken = false
+                WHERE tmpToken = true";
+
+            static::DbQuery($sql);
+
+            $this->gamestate->nextState("nextPlayer");
+        }elseif($maxToken>$tokenLimit){
+            self::notifyAllPlayers( "game_end_trigger", clienttranslate( 'Warning: The game will finish at the end of this round' ), array() );
+            self::setGameStateValue("lastRoundAnnounced", 1);
+
+            $tokenList = self::getObjectListFromDB("
+                SELECT token_id id
+                FROM token
+                WHERE tmpToken= true");
+
+            $this->notifyAllPlayers('tokenToRemove',"",
+                [
+                    'nbToken' => ($maxToken-$tokenLimit),
+                    'token' => $tokenList,
+                ]
+                );
+
+            $this->gamestate->nextState("chooseToken");
+
+        }elseif ($maxToken==$tokenLimit){
+            self::notifyAllPlayers( "game_end_trigger", clienttranslate( 'Warning: The game will finish at the end of this round' ), array() );
+            self::setGameStateValue("lastRoundAnnounced", 1);
+            $this->gamestate->nextState("nextPlayer");
+
+            $sql="UPDATE token SET tmpToken = false
+                WHERE tmpToken = true";
+
+            static::DbQuery($sql);
+
+        }else{
+            $sql="UPDATE token SET tmpToken = false
+                WHERE tmpToken = true";
+
+            static::DbQuery($sql);
+
+            $this->gamestate->nextState("nextPlayer");
+        }
+    }
+
+    /**
+     *
+     * CheckPlay state: trigger skip player and reveal private card if necessary
+     *
+     */
+
+    public function stCheckCanPlay(): void {
+
+        if(!$this->checkCanplay()){
+
+            $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
+
+            static::DbQuery($sql);
+
+            $message=$this->getActivePlayerName().' can not play at all ';
+
+            $privateTile= self::getObjectListFromDB("SELECT tile_color color
+                FROM tile
+                WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
+
+            if (sizeof($privateTile) == 0){
+                $message.=" and do no not have any private tile";
+            }elseif(sizeof($privateTile) == 1){
+                $message.=" and has a";
+                $message.=$this->translatedColors[$privateTile[0]['color']]." tile ";
+                $message.=" in his personal tile";
+            }elseif(sizeof($privateTile) == 2){
+                $message.=" and has a ";
+                $message.=$this->translatedColors[$privateTile[0]['color']]." tile and a ";
+                $message.=$this->translatedColors[$privateTile[1]['color']]." tile";
+                $message.=" in his personal tile";
+            }else{
+                //error
+                $this->dump( "More than 2 private tile should not occured", $privateTile);
+            }
+
+            //send new tiles and places
+            $this->notifyAllPlayers('canNotPlay',clienttranslate($message),
+                [
+                ]
+            );
+
+            $this->gamestate->nextState("nextPlayer");
+
+        }else{
+            $this->gamestate->nextState("playerTurn");
+        }
+     }
+
+
+    /**
+     *
+     * Check if player canplay if not skip is turn and reveal his private tile
+     *
+     * Note: set triangle to 0 if not found might improve perfcomance need to be test/investigate
+     *
+     */
+
+    public function checkTriangle($token) {
         if(!$token["triangleDown"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]-1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]-1));
 
             $token3 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]-1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]-1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
                 self::DbQuery(sprintf("UPDATE token SET triangleDown = 1  WHERE token_id = '%s'", $token["id"]));
@@ -820,14 +1387,14 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
         if(!$token["triangleUp"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]+1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]+1));
 
             $token3 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]+1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]+1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
                 self::DbQuery(sprintf("UPDATE token SET triangleUp = 1  WHERE token_id = '%s'", $token["id"]));
@@ -838,14 +1405,14 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
         if(!$token["triangleUpLeft"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]+2)." and board_token_y = ".($token["y"]));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]+2)." and board_token_y = ".($token["y"]));
 
             $token3 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]-1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]-1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
                 self::DbQuery(sprintf("UPDATE token SET triangleUpLeft = 1  WHERE token_id = '%s'", $token["id"]));
@@ -856,14 +1423,14 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
         if(!$token["triangleDownLeft"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]+2)." and board_token_y = ".($token["y"]));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]+2)." and board_token_y = ".($token["y"]));
 
             $token3 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]+1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]+1)." and board_token_y = ".($token["y"]+1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
                 self::DbQuery(sprintf("UPDATE token SET triangleDownLeft = 1  WHERE token_id = '%s'", $token["id"]));
@@ -874,14 +1441,14 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
       if(!$token["triangleUpRight"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]-2)." and board_token_y = ".($token["y"]));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]-2)." and board_token_y = ".($token["y"]));
 
             $token3 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]-1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]-1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
                 self::DbQuery(sprintf("UPDATE token SET triangleUpRight = 1  WHERE token_id = '%s'", $token["id"]));
@@ -892,14 +1459,14 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
         if(!$token["triangleDownRight"]){
             $token2 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]-2)." and board_token_y = ".($token["y"]));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]-2)." and board_token_y = ".($token["y"]));
 
             $token3 = self::getUniqueValueFromDB("SELECT token_id
-                    FROM token
-                    WHERE token_player =".$token["token_player"]." and
-                    board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]+1));
+                FROM token
+                WHERE token_player =".$token["token_player"]." and
+                board_token_x = ".($token["x"]-1)." and board_token_y = ".($token["y"]+1));
 
             if ( ( $token2 != null ) and ( $token3 != null ) ){
                 self::DbQuery(sprintf("UPDATE token SET triangleDownRight = 1  WHERE token_id = '%s'", $token["id"]));
@@ -910,35 +1477,47 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
     }
 
-    public function calculateScore(): void {
+    /**
+     *
+     * Calculate point
+     *
+     * might have a solution to improve calculation and ui show
+     *
+     * @throws BgaUserException
+     */
+
+    public function calculateScore($debug=false): void {
 
         $players = $this->loadPlayersBasicInfos();
 
+        $simplePoint = [['str' => clienttranslate("point simple tile"), 'args' => []]];
+        $bicolorPoint = [['str' => clienttranslate("point bicolor tile"), 'args' => []]];
+        $prismePoint = [['str' => clienttranslate("point prisme tile"), 'args' => []]];
 
-        $simpleTile = [['str' => "point simple tile", 'args' => []]];
-        $bicolorPoint = [['str' => "point bicolor tile", 'args' => []]];
-        $prismePoint = [['str' => "point prisme tile", 'args' => []]];
-
-        $trianglePoint = [['str' => "triangle point", 'args' => []]];
-        $pointsGroup = [['str' => "points group", 'args' => []]];
-        $pointsTotal = [['str' => "points total", 'args' => []]];
-
+        $trianglePoint = [['str' => clienttranslate("triangle point"), 'args' => []]];
+        $pointsGroup = [['str' => clienttranslate("points group"), 'args' => []]];
+        $pointsTotal = [['str' => clienttranslate("points total"), 'args' => []]];
 
         $nameRow = [''];
+
+        $i=0;
+        $j=0;
         foreach ($players as $player_id => $player) {
-            $nameRow[$player_id] = [
-                'str' => '${player_name}',
-                'args' => ['player_name' => $this->getPlayerNameById($player_id)],
-                'type' => 'header',
-            ];
+            $simpleWheel[$player_id]=0;
+            $bicolorWheel[$player_id]=0;
+            $prismeWheel[$player_id]=0;
+            if(($i%2)==0){
+                $teamA[$j]=$player_id;
+            }else{
+                $teamB[$j]=$player_id;
+                $j++;
+            }
+            $i++;
+       }
 
-            $simpleTile[$player_id]=0;
-            $bicolorTile[$player_id]=0;
-            $prismeTile[$player_id]=0;
-        }
-
-        $tokens = self::getCollectionFromDb("SELECT token_id as id,token_player
-                FROM token");
+        $tokens = self::getCollectionFromDb("
+            SELECT token_id as id, token_player
+            FROM token");
 
         foreach( $tokens as $token ){
             if($token['token_player'] != NULL){
@@ -962,33 +1541,56 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                     $this->dump( "Error calculation point error", $msg);
                 }
 
-//                if($this->getGameStateValue('triangleBonus') == 1){
-
-                    $tokenUpdated = self::getCollectionFromDb("SELECT token_id as id,token_player,
+                //always calculate  for stat
+                $tokenUpdated = self::getCollectionFromDb("
+                    SELECT token_id as id,token_player,
                     board_token_x as x , board_token_y as y,
                     triangleDown, triangleUpLeft, triangleDownLeft,
                     triangleUp, triangleDownRight, triangleUpRight
                     FROM token WHERE token_id = ".$token["id"]);
 
-                    $this->countTriangle($tokenUpdated[$token["id"]]);
-//                }
+                $this->checkTriangle($tokenUpdated[$token["id"]]);
 
-//                if($this->getGameStateValue('groupBonus') == 1){
-                    $tokenUpdated = self::getCollectionFromDb("SELECT token_id as id,token_player,
+                $tokenUpdated = self::getCollectionFromDb("
+                    SELECT token_id as id,token_player,
                     board_token_x as x , board_token_y as y, tileGroup
                     FROM token WHERE token_id = ".$token["id"]);
 
-                    $this->CheckAdjacentToken($tokenUpdated[$token["id"]]);
-//                }
+                $this->CheckAdjacentToken($tokenUpdated[$token["id"]]);
             }
 
         }
 
+        if ($this->getGameStateValue('teamPlay') == 1){
+            $nameRow[] = [
+                'str' => '${player_name1} ${player_name2}',
+                'args' => ['player_name1' => $this->getPlayerNameById($teamA[0]),
+                           'player_name2' => $this->getPlayerNameById($teamA[1])
+                ],
+                'type' => 'header',
+            ];
 
+            $nameRow[] = [
+                'str' => '${player_name1} ${player_name2}',
+                'args' => ['player_name1' => $this->getPlayerNameById($teamB[0]),
+                           'player_name2' => $this->getPlayerNameById($teamB[1])
+                ],
+                'type' => 'header',
+            ];
+        }
+
+        $i=0;
+        $j=0;
         foreach ($players as $player_id => $player) {
-
-            //can use directly result of countTriangle but "work" only the first time as we did not count twice the triangle
-            $triangeNumber=(self::getUniqueValueFromDB("SELECT count(token_id)
+            if ($this->getGameStateValue('teamPlay') == 0){
+                $nameRow[$player_id] = [
+                    'str' => '${player_name}',
+                    'args' => ['player_name' => $this->getPlayerNameById($player_id)],
+                    'type' => 'header',
+                ];
+            }
+            //can use directly result of checkTriangle but "work" only the first time as we did not count twice the triangle
+            $triangeNumberTmp=(self::getUniqueValueFromDB("SELECT count(token_id)
                     FROM token
                     WHERE token_player =".$player_id." and
                     triangleDown = 1")+
@@ -996,10 +1598,10 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                     FROM token
                     WHERE token_player =".$player_id." and
                     triangleUp = 1"));
-            $this->setStat($triangeNumber,"Triangle",$player_id);
+            $this->setStat($triangeNumberTmp,"Triangle",$player_id);
 
             if($this->getGameStateValue('triangleBonus') == 1){
-                $triangeNumber[$player_id]=$triangeNumber;
+                $triangeNumber[$player_id]=$triangeNumberTmp;
 
             }else{
                 $triangeNumber[$player_id]=0;
@@ -1012,31 +1614,93 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
                             WHERE token_player =".$player_id."
                             GROUP BY tileGroup) as tmp");
 
+            if($group == NULL)
+                $group =0;
+
             $this->setStat($group,"Group",$player_id);
 
-            if($this->getGameStateValue('groupBonus') == 1){
-                $pointsGroup[$player_id]=$group;
-            }else{
-                $pointsGroup[$player_id]=0;
-            }
 
-            $prismePoint[$player_id] = $prismeWheel[$player_id]." x 3 = ".$prismeWheel[$player_id]*3;
-            $bicolorPoint[$player_id] = $bicolorWheel[$player_id]." x 2 = ".$bicolorWheel[$player_id]*2;
-            $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
-
-            $this->setStat($prismeWheel[$player_id],"PrismeWheel",$player_id);
-            $this->setStat($bicolorWheel[$player_id],"BicolorWheel",$player_id);
-            $this->setStat($simpleWheel[$player_id],"SimpleWheel",$player_id);
-
-            $pointsTotal[$player_id]=
+            $calculTotalTmp=
                 $simpleWheel[$player_id]+
                 $bicolorWheel[$player_id]*2+
                 $prismeWheel[$player_id]*3+
                 $triangeNumber[$player_id]*2+
-                $pointsGroup[$player_id];
+                $group;
+
+
+            if ($this->getGameStateValue('teamPlay') == 0){
+                $prismePoint[$player_id] = $prismeWheel[$player_id]." x 3 = ".$prismeWheel[$player_id]*3;
+                $bicolorPoint[$player_id] = $bicolorWheel[$player_id]." x 2 = ".$bicolorWheel[$player_id]*2;
+                $simplePoint[$player_id] = $simpleWheel[$player_id];
+                $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
+                $pointsTotal[$player_id]=$calculTotalTmp;
+
+                if($this->getGameStateValue('groupBonus') == 1){
+                    $pointsGroup[$player_id]=$group;
+                }else{
+                    $pointsGroup[$player_id]=0;
+                }
+
+                self::DbQuery(sprintf("UPDATE player SET player_score = %d WHERE player_id = '%s'", $calculTotalTmp, $player_id));
+
+            }else{
+                $indice=$i%2+1;
+                if ( ($i == 0) || ($i == 1) ){
+                    $prismeWheel[$indice] = $prismeWheel[$player_id];
+                    $bicolorWheel[$indice] = $bicolorWheel[$player_id];
+                    $simpleWheel[$indice] = $simpleWheel[$player_id];
+                    $triangeNumber[$indice] = $triangeNumber[$player_id];
+                    $totalTeam[$indice] = $calculTotalTmp;
+
+                    $prismePoint[$indice] = "( ".$prismeWheel[$player_id]." + ";
+                    $bicolorPoint[$indice] = "( ".$bicolorWheel[$player_id]." + ";
+                    $simplePoint[$indice] = $simpleWheel[$player_id]." + ";
+                    $trianglePoint[$indice] = "( ".$triangeNumber[$player_id]."  + ";
+                    $pointsTotal[$indice] = $calculTotalTmp." + ";
+                    if($this->getGameStateValue('groupBonus') == 1){
+                        $pointsGroup[$indice]=$group." + ";
+                        $groupTeam[$indice]=$group;
+                    }else{
+                        $pointsGroup[$indice]=0;
+                    }
+                    $playerTeam[$indice]=$player_id;
+
+                }else{
+                    $prismeWheel[$indice] += $prismeWheel[$player_id];
+                    $bicolorWheel[$indice] += $bicolorWheel[$player_id];
+                    $simpleWheel[$indice] += $simpleWheel[$player_id];
+                    $triangeNumber[$indice] += $triangeNumber[$player_id];
+                    $totalTeam[$indice] += $calculTotalTmp;
+
+                    $prismePoint[$indice] .= $prismeWheel[$player_id]." ) x 3 = ".$prismeWheel[$indice]*3;
+                    $bicolorPoint[$indice] .= $bicolorWheel[$player_id]." ) x 2 = ".$bicolorWheel[$indice]*2;
+                    $simplePoint[$indice] .= $simpleWheel[$player_id]." = ".$simpleWheel[$indice];
+                    $trianglePoint[$indice] .= $triangeNumber[$player_id]." ) x 2 = ".$triangeNumber[$indice]*2;
+                    $pointsTotal[$indice].= $calculTotalTmp." = ".$totalTeam[$indice];
+                    if($this->getGameStateValue('groupBonus') == 1){
+                        $groupTeam[$indice]+=$group;
+                        $pointsGroup[$indice].=$group." = ".$groupTeam[$indice];
+                    }
+
+                    self::DbQuery(sprintf(
+                        "UPDATE player SET player_score = %d WHERE player_id = '%s' or player_id = '%s'",
+                         $totalTeam[$indice],
+                         $playerTeam[$indice],
+                         $player_id));
+
+                }
+                $i++;
+            }
+            $this->setStat($prismeWheel[$player_id],"PrismeWheel",$player_id);
+            $this->setStat($bicolorWheel[$player_id],"BicolorWheel",$player_id);
+            $this->setStat($simpleWheel[$player_id],"SimpleWheel",$player_id);
+
+
+            $this->setStat($calculTotalTmp,"Total",$player_id);
+
         }
 
-        $table = [$nameRow,$simpleTile,$bicolorPoint,$prismePoint];
+        $table = [$nameRow,$simplePoint,$bicolorPoint,$prismePoint];
             if($this->getGameStateValue('triangleBonus') == 1){
                 $table[] = $trianglePoint;
             }
@@ -1046,188 +1710,17 @@ UPDATE token SET triangleDown = null , triangleDownLeft = null, triangleDownRigh
 
         $table[]=$pointsTotal;
 
-        $this->notifyAllPlayers("tableWindow", clienttranslate(""), [
+        $this->notifyAllPlayers("tableWindow", clienttranslate("End Scoring"), [
             "id" => 'finalScoring',
             "title" => "",
             "table" => $table,
             "closing" => clienttranslate("Close"),
         ]);
 
+if(!$debug)
         $this->gamestate->nextState("endGame");
     }
-    public function debug_getPurchasableTiles(){
-        $test=$this->getPurchasableTiles();
 
-        $this->notifyAllPlayers(
-            'getPurchasableTiles',"",$test
-            );
-
-    }
-    public function checkCanplay(): bool {
-        $canPlay = false;
-
-        $table_size=self::getObjectFromDB("SELECT
-            max( board_tile_x ) as xMax,
-            min( board_tile_x ) as xMin,
-            max( board_tile_y ) as yMax,
-            min( board_tile_y ) as yMin
-            FROM tile WHERE tile_location = 'Board'",true);
-
-        $result["tiles"] = self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
-            FROM tile
-            WHERE tile_location = 'Board'");
-
-        $xMin = $table_size["xMin"]-1;
-        $xMax = $table_size["xMax"]+1;
-        $yMin = $table_size["yMin"]-1;
-        $yMax = $table_size["yMax"]+1;
-
-        for($i=$xMin;$i<=$xMax;$i++){
-            for($j=$yMin;$j<=$yMax;$j++){
-             $tilesOnBoard[$i][$j]=null;
-            }
-        }
-
-        foreach ($result["tiles"] as $tile) {
-            $x=$tile['x'];
-            $y=$tile['y'];
-            $tilesOnBoard[$x][$y]=$tile['color'];
-        }
-
-        $result["tiles"] = self::getCollectionFromDb("SELECT  tile_color
-            FROM tile
-            WHERE tile_location = 'common' OR
-            (tile_location = 'Player' and tile_location_arg = ".$this->getCurrentPlayerId().")
-            GROUP BY tile_color" );
-
-        $x=$xMin;
-        $y=$yMin;
-
-        while ((!$canPlay) && ($x<=$xMax) && ($y<=$yMax))  {
-            if($tilesOnBoard[$x][$y] == null){
-
-                foreach ($result["tiles"] as $tile) {
-
-                    $test1=false;
-                    $test2=false;
-                    $test3=false;
-                    if (isset($tilesOnBoard[$x-1][$y]))
-                        $test1=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x-1][$y]);
-
-
-                    if (isset($tilesOnBoard[$x+1][$y]))
-                        $test2=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x+1][$y]);
-
-                    if( ( $x + $y ) %2 == 0){
-                        if (isset($tilesOnBoard[$x][$y+1]))
-                        $test3=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x][$y+1]);
-
-                    }else{
-                        if (isset($tilesOnBoard[$x][$y-1]))
-                            $test3=$this->CheckColor($tile["tile_color"] ,$tilesOnBoard[$x][$y-1]);
-                    }
-                    if( $test1 || $test2 || $test3 )
-                        $canPlay=true;
-
-
-                }
-            }
-
-            $x++;
-            if($x>$xMax){
-                $x=$xMin;
-                $y++;
-            }
-
-
-        }
-        return $canPlay;
-    }
-
-    public function getPurchasableTiles(): array {
-        $purchasableTiles=[];
-        if (self::getGameStateValue('purchase') ==1 ){
-            $table_size=self::getObjectFromDB("SELECT
-                max( board_tile_x ) as xMax,
-                min( board_tile_x ) as xMin,
-                max( board_tile_y ) as yMax,
-                min( board_tile_y ) as yMin
-                FROM tile WHERE tile_location = 'Board'",true);
-
-            $result["tiles"] = self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
-                FROM tile
-                WHERE tile_location = 'Board'");
-
-            $xMin = $table_size["xMin"]-1;
-            $xMax = $table_size["xMax"]+1;
-            $yMin = $table_size["yMin"]-1;
-            $yMax = $table_size["yMax"]+1;
-/*
-$size=$xMin." ".$xMax." ".$yMin." ".$yMax;
-$this->dump("size",$size);
-*/
-
-            for($i=$xMin;$i<=$xMax;$i++){
-                for($j=$yMin;$j<=$yMax;$j++){
-                 $tilesOnBoard[$i][$j]["empty"]=1;
-                }
-            }
-
-            foreach ($result["tiles"] as $tile) {
-                $x=$tile['x'];
-                $y=$tile['y'];
-
-                $tilesOnBoard[$x][$y]["empty"]=0;
-                $tilesOnBoard[$x][$y]["id"]=$tile['id'];
-            }
-            $tilesOnBoardString="***************************\n";
-            for($i=$xMin;$i<$xMax;$i++){
-                $tilesOnBoardString.="\t\t".$i;
-            }
-             $tilesOnBoardString.="\n\n";
-
-            for($j=$yMin;$j<=$yMax;$j++){
-                $tilesOnBoardString.=$j."\t";
-                for($i=$xMin;$i<=$xMax;$i++){
-                    $tilesOnBoardString.="\t".$tilesOnBoard[$i][$j]["empty"];
-                }
-                $tilesOnBoardString.="\n";
-            }
-
-//$this->dump("tilesOnBoardString",$tilesOnBoardString);
-
-            foreach ($result["tiles"] as $tile) {
-                $x=$tile['x'];
-                $y=$tile['y'];
-                $coord=$x." ".$y;
-/*
-$this->dump("coord",$coord);
-$this->dump("tilesOnBoard",$tilesOnBoard[$x][$y]['id']);
-*/
-                if( ( $x + $y ) %2 == 0){
-
-                    $resultat = $tilesOnBoard[($x+1)][$y]["empty"] +
-                    $tilesOnBoard[($x-1)][$y]["empty"] +
-                    $tilesOnBoard[$x][($y+1)]["empty"];
-
-                }else{
-
-                    $resultat = $tilesOnBoard[($x+1)][$y]["empty"] +
-                    $tilesOnBoard[($x-1)][$y]["empty"] +
-                    $tilesOnBoard[$x][($y-1)]["empty"];
-
-                }
-
-                if($resultat == 2)
-                    $purchasableTiles[]=$tilesOnBoard[$x][$y]["id"];
-
-            }
-
-        }
-
-        return $purchasableTiles;
-
-    }
 
     /*
      * Gather all information about current game situation (visible by the current player).
@@ -1249,7 +1742,9 @@ $this->dump("tilesOnBoard",$tilesOnBoard[$x][$y]['id']);
 
         $result["purchasableTiles"] = $this->getPurchasableTiles();
 
-        $result['final_round'] = self::getGameStateValue('last_round_announced');
+        $result['finalRound'] = self::getGameStateValue('lastRoundAnnounced');
+
+        $result['lowTile'] = self::getGameStateValue('lowTile');
 
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
@@ -1260,13 +1755,6 @@ $this->dump("tilesOnBoard",$tilesOnBoard[$x][$y]['id']);
         $result["hand"] = self::getObjectListFromDB("SELECT tile_id id, tile_color color
                 FROM tile
                 WHERE tile_location = 'Player' and tile_location_arg = ".$player_id);
-
-$sql="SELECT tile_id id, tile_color color
-                FROM tile
-                WHERE tile_location = 'Player' and tile_location_arg = ".$player_id;
-$this->dump("sql",$sql);
-
-$this->dump("hand",$result["hand"]);
 
         $result["common"] = self::getObjectListFromDB("SELECT tile_id id, tile_color color
                 FROM tile
@@ -1280,43 +1768,35 @@ $this->dump("hand",$result["hand"]);
         $result["token"] = self::getObjectListFromDB("SELECT token_id id,board_token_x x,board_token_y y, token_player player, tileGroup
                 FROM token");
 
-        $result["tilesRemain"]=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Deck'");
+        $result["tokenToDecide"] = self::getObjectListFromDB("SELECT token_id id
+                FROM token
+                WHERE tmpToken= true");
 
-        $places=[];
-        foreach ($result["tiles"] as $tile) {
 
-            $x=$tile['x'];
-            $y=$tile['y'];
+        $maxToken=(int)$this->getUniqueValueFromDB("SELECT count(token_id) as nb
+            FROM `token`
+            WHERE token_player = ".$this->getActivePlayerId()."
+            GROUP BY token_player ");
 
-            // Places array creation
+        $tokenLimit=$this->getGameStateValue('numberOfToken');
 
-            if( ( $x + $y ) %2 == 0){
-                $places_coords = array( ($x+1).'x'.$y, ($x-1).'x'.$y, $x.'x'.($y+1) );
-            }else{
-                $places_coords = array( ($x+1).'x'.$y, ($x-1).'x'.$y, $x.'x'.($y-1) );
-            }
+        $result["nbToken"]=$maxToken-$tokenLimit;
 
-            $places[$x.'x'.$y] = 0;
+        $result["tilesRemain"]=$this->getObjectListFromDB("SELECT COUNT(tile_id) ,tile_color FROM tile WHERE tile_location = 'Deck' GROUP BY tile_color");
 
-            foreach( $places_coords as $coord )
-            {
-                if( ! isset( $places[ $coord ] ) )
-                    $places[ $coord ] = 1;
-            }
+        $result["places"]=$this->getPlaces($result["tiles"]);
+
+        $players = $this->loadPlayersBasicInfos();
+        foreach ($players as $other_id => $other) {
+            $token[$other_id] =
+                $this->getGameStateValue('numberOfToken') -
+                self::getUniqueValueFromDB("
+                    SELECT count(token_id) as count
+                    FROM token
+                    WHERE token_player =".$other_id."
+                    GROUP BY token_player");
         }
-
-        $result['places'] = array();
-        foreach( $places as $coord => $value )
-        {
-            if( $value == 1 )
-            {
-                $xpos = strpos( $coord, 'x' );
-
-                $x = substr( $coord, 0, $xpos );
-                $y = substr( $coord, $xpos+1 );
-                $result['places'][] = array( 'x' => $x, 'y' => $y );
-            }
-        }
+        $result['tokenPlayer'] = $token;
 
         return $result;
     }
@@ -1363,9 +1843,9 @@ $this->dump("hand",$result["hand"]);
         $this->reattributeColorsBasedOnPreferences($players, $gameinfos["player_colors"]);
         $this->reloadPlayersBasicInfos();
 
-        $this->setGameStateInitialValue( 'last_player', (int)$this->getUniqueValueFromDB("SELECT MAX(player_no) FROM player") );
-
-        $this->setGameStateInitialValue( 'last_round_announced', 0 );
+        $this->setGameStateInitialValue( 'lastPlayer', (int)$this->getUniqueValueFromDB("SELECT MAX(player_no) FROM player") );
+        $this->setGameStateInitialValue( 'lastRoundAnnounced', 0 );
+        $this->setGameStateInitialValue( 'lowTile', 0 );
 
 
         // Init game statistics.
@@ -1374,39 +1854,68 @@ $this->dump("hand",$result["hand"]);
         $this->initStat("player", "TilePurchased", 0);
         $this->initStat("player", "TokenCaptured", 0);
         $this->initStat("player", "WhellCompleted", 0);
-        $this->initStat("player", "TilePurchased", 0);
 
         $this->createTiles();
         $this->createFirstWheel();
         $this->commonTile();
-        $this->initiatePlayerhand();
+        $this->initiatePlayerHand();
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();
     }
 
+    /**
+     *
+     * Debug function
+     *
+     * @throws BgaUserException
+     */
 
-    public function createTiles() {
-        $sql = "INSERT INTO tile ( tile_color, tile_location) VALUES ";
-        $values = [];
+    public function debug_getPurchasableTiles(){
+        $test=$this->getPurchasableTiles();
+        $this->notifyAllPlayers('getPurchasableTiles',"",$test);
+    }
 
-        $nbTile=$this->getGameStateValue('multipleGame')*12;
 
-        if ($nbTile == 0){
-            $nbTile=6;
-        }
+    public function debug_seePlace(){
+        $test=$this->getPlaces(self::getCollectionFromDb("SELECT tile_id id,board_tile_x x,board_tile_y y, tile_color color
+                FROM tile
+                WHERE tile_location = 'Board'"));
 
-        $this->setGameStateValue('numberOfToken',$nbTile);
+        $this->notifyAllPlayers('debug',"",$test);
+    }
 
-        foreach(COLORS as $color_id => $color){
-            for($value=1; $value<=$nbTile; $value++) {
-                $values[] = "('".$color_id."', 'Deck')";
-            }
-        }
 
-        $sql .= implode( ',', $values );
-        static::DbQuery( $sql );
+    public function debug_checkCanplay() {
+        if($this->checkCanplay())
+        $this->notifyAllPlayers('debug',$this->getActivePlayerId()."success",NULL);
+        else
+        $this->notifyAllPlayers('debug',$this->getActivePlayerId()."failed",NULL);
+    }
 
+    public function debug_tokenToRemove() {
+        $maxToken=(int)$this->getUniqueValueFromDB("SELECT count(token_id) as nb
+            FROM `token`
+            WHERE token_player = ".$this->getActivePlayerId()."
+            GROUP BY token_player ");
+
+        $tokenLimit=$this->getGameStateValue('numberOfToken');
+
+        self::notifyAllPlayers( "game_end_trigger", clienttranslate( 'Warning: The game will finish at the end of this round' ), array() );
+        self::setGameStateValue("lastRoundAnnounced", 1);
+
+        $tokenList = self::getObjectListFromDB("
+            SELECT token_id id
+            FROM token
+            WHERE tmpToken= true");
+
+        $this->notifyAllPlayers('tokenToRemove',
+            "",
+            [
+                'nbToken' => ($maxToken-$tokenLimit),
+                'token' => $tokenList,
+            ]
+        );
     }
 
     public function debug_tokenScore(int $x, int $y) {
@@ -1423,11 +1932,7 @@ $this->dump("hand",$result["hand"]);
         $this->CheckAdjacentToken($token);
 
         $message="resultat ".$res;
-        $this->notifyAllPlayers(
-            'test',$message,array(
-            )
-        );
-
+        $this->notifyAllPlayers('test',$message,array());
 
     }
 
@@ -1451,98 +1956,71 @@ $this->dump("hand",$result["hand"]);
         $this->calculateScore(true);
     }
 
+
+    public function debug_scoreTeam() {
+        $this->setGameStateValue('teamPlay',1);
+        $this->calculateScore(true);
+        $this->setGameStateValue('teamPlay',0);
+
+    }
+
     public function debug_commonTile() {
         $this->commonTile();
     }
 
     public function debug_token(int $x, int $y) {
         $this->CheckWhellsCompleted( $x,  $y);
-    }
-
-    public function initiatePlayerhand() {
-        $players = self::loadPlayersBasicInfos();
-
-        foreach ($players as $player_id => $player) {
-            $tiles = $this->pickTile(2);
-            static::DbQuery( "
-            UPDATE tile set tile_location = 'Player', tile_location_arg = ".$player_id."
-            WHERE tile_id = ".$tiles[0]." or tile_id = ".$tiles[1]);
-        }
-    }
-
-
-
-    protected function commonTile(){
-        $tileNbr=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Common'");
-
-        $tileToPick=$this->getGameStateValue('CommunalTiles')-$tileNbr;
-
-        $tiles = $this->pickTile($tileToPick);
-
-        $sql="UPDATE tile SET tile_location = 'Common' where";
-
-        $first=true;
-        $tilePick = 0;
-        foreach ( $tiles as $tile ) {
-            if(!$first){
-                $sql.="or";
-            }else{
-                $first=false;
-            }
-            $sql.= " tile_id = ".$tile." ";
-            $tilePick++;
-        }
-        if($tilePick>0)
-            static::DbQuery( $sql );
+        //send new token
+        if( count($this->token) != 0)
+        $this->notifyAllPlayers('newToken',
+            clienttranslate($this->getActivePlayerName()." completed a wheel ".$x." ".$y),
+            [
+                'token' => $this->token,
+            ]
+        );
 
     }
+    public function debug_forceChangeTile(){
+        $this->setGameStateValue('communalTiles',6);
+
+        $sql="UPDATE tile SET tile_location = 'Deck' where tile_location = 'common'";
+        static::DbQuery($sql);
+
+        $this->commonTile();
+
+        $common = self::getObjectListFromDB("SELECT tile_id id, tile_color color
+                FROM tile
+                WHERE tile_location = 'Common'");
+
+        $tilesRemain=$this->getObjectListFromDB("
+            SELECT COUNT(tile_id)
+            FROM tile
+            WHERE tile_location = 'Deck'
+            GROUP BY tile_color");
 
 
-    public function createFirstWheel() {
-
-        $sql = "INSERT INTO `token` ( `board_token_x`, `board_token_y` ) VALUES ('0', '0')";
-        static::DbQuery( $sql );
-
-        //create initial wheel
-        foreach(COLORS as $color_id => $color){
-            $tile_id = $this->getUniqueValueFromDB("SELECT tile_id
-            FROM tile WHERE
-            tile_color='".$color_id."'ORDER BY RAND() LIMIT 0,1");
-
-            $x=FIRST_WHEEL[$color_id]['x'];
-            $y=FIRST_WHEEL[$color_id]['y'];
-
-            static::DbQuery( "
-            UPDATE tile SET board_tile_x = ".$x.", board_tile_y = ".$y.", tile_location = 'board'
-            WHERE  tile_id = '".$tile_id."'");
-
-
-            $sql=sprintf("INSERT IGNORE INTO tokenTile (token_id, tile_id) VALUES (1, %s)",
-                $tile_id);
-
-            static::DbQuery($sql);
-
-        }
-
+        $this->notifyAllPlayers('nextPlayer',
+            "",
+            array(
+                "commonTile" => $common,
+                "tilesRemain" => $tilesRemain,
+            )
+        );
     }
 
-    /**
-     *
-     * Pick n tile from the supply
-     *
-     * @throws BgaUserException
-     */
-    protected function pickTile( $number ){
 
-        $tilesCollection = self::getCollectionFromDb( "SELECT tile_id id  FROM tile WHERE tile_location = 'Deck' ORDER BY RAND() LIMIT 0,".$number, false );
+    public function debug_checkTriangle(){
 
-        $tiles = [];
+        $tokens=self::getCollectionFromDb("
+            SELECT  token_id as id,token_player,
+                    board_token_x as x , board_token_y as y,
+                    triangleDown, triangleUpLeft, triangleDownLeft,
+                    triangleUp, triangleDownRight, triangleUpRight
+            FROM token");
 
-        foreach ( $tilesCollection as $deck_tile_id => $tileId ) {
-            $tiles[] = $tileId['id'];
+        foreach( $tokens as $token ){
+            $this->checkTriangle($token);
         }
-
-        return $tiles;
     }
 
     /**
@@ -1563,26 +2041,24 @@ $this->dump("hand",$result["hand"]);
      */
     protected function zombieTurn(array $state, int $active_player): void
     {
-        $state_name = $state["name"];
-
         if ($state["type"] === "activeplayer") {
-            switch ($state_name) {
-                default:
-                {
-                    $this->gamestate->nextState("zombiePass");
-                    break;
-                }
+
+            $tileNbr=(int)$this->getUniqueValueFromDB("SELECT COUNT(tile_id) FROM tile WHERE tile_location = 'Common'");
+
+            if($tileNbr != $this->getGameStateValue('communalTiles')){
+                $sql="UPDATE tile
+                    SET tile_location = 'Deck'
+                    WHERE tile_location = 'Player' and
+                    tile_location_arg = ".$this->getCurrentPlayerId();
+
+                static::DbQuery($sql);
             }
 
-            return;
+            $this->gamestate->nextState("nextPlayer");
+
         }
 
-        // Make sure player is in a non-blocking status for role turn.
-        if ($state["type"] === "multipleactiveplayer") {
-            $this->gamestate->setPlayerNonMultiactive($active_player, '');
-            return;
-        }
+        return;
 
-        throw new \feException("Zombie mode not supported at this game state: \"{$state_name}\".");
     }
 }

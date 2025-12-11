@@ -72,31 +72,56 @@ $machinestates = [
         "possibleactions" => [
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actPlay",
-            "actCanNotPlay"
+            "actCanNotPlay",
+            "actDebugCheckTile"
         ],
-        "transitions" => ["nextPlayer" => 3]
+        //nextPlayer for zombie can skip some step
+        "transitions" => ["nextPlayer" => 5,"checkToken" => 3]
     ],
 
     3 => [
+        "name" => "checkToken",
+        "description" => '',
+        "type" => "game",
+        "action" => "stCheckToken",
+        "updateGameProgression" => true,
+        "transitions" => ["nextPlayer" => 5, "chooseToken" => 4]
+    ],
+
+
+    4 => [
+        "name" => "chooseToken",
+        "description" => clienttranslate('${actplayer} must select token he has to remove'),
+        "descriptionmyturn" => clienttranslate('${you} must select <span id="nbToken"></span> token to remove'),
+        "type" => "activeplayer",
+        "possibleactions" => [
+            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
+            "actToken",
+            "actForcePass"
+        ],
+        "transitions" => ["nextPlayer" => 5]
+    ],
+
+    5 => [
         "name" => "nextPlayer",
         "description" => '',
         "type" => "game",
         "action" => "stNextPlayer",
         "updateGameProgression" => true,
-        "transitions" => ["calculateScore" => 5, "checkCanPlay" => 4]
+        "transitions" => ["calculateScore" => 7, "checkCanPlay" => 6]
     ],
 
-    4 => [
+    6 => [
         "name" => "checkCanPlay",
         "description" => '',
         "type" => "game",
         "action" => "stCheckCanPlay",
         "updateGameProgression" => true,
-        "transitions" => ["nextPlayer" => 3, "playerTurn" => 2]
+        "transitions" => ["nextPlayer" => 5, "playerTurn" => 2]
     ],
 
 
-    5 => [
+    7 => [
         "name" => "calculateScore",
         "description" => '',
         "type" => "game",

@@ -69,5 +69,32 @@
         "name": "Enable"
       }
     }
+  },
+  "106": {
+    "name": "Team Play(4 player only)",
+    "values": {
+      "0": {
+        "name": "Disable"
+      },
+      "1": {
+        "name": "Enable"
+      }
+    },
+    "displaycondition": [
+      {
+        "type": "minplayers",
+        "value": 4
+      }
+    ],
+    "startcondition": {
+        "0": [],
+        "1": [
+            {
+                "type": "minplayers",
+                "value": 4,
+                "message": "Team option required 4 player"
+            }
+        ]
+    }
   }
 }
