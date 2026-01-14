@@ -237,6 +237,9 @@ function (dojo, declare) {
             this.scrollmap.btnsDivOnMap = false;
             this.scrollmap.btnsDivPositionOutsideMap = ebg.scrollmapWithZoom.btnsDivPositionE.Left
 
+            this.scrollmap.bIncrHeightBtnVisible=false;
+            this.scrollmap.bInfoBtnVisible=true;
+
             // Make map scrollable
             this.scrollmap.create( $('map_container'),$('map_scrollable'),$('map_surface'),$('map_scrollable_oversurface') ); // use ids from template
             this.scrollmap.setupOnScreenArrows( 250 ); // this will hook buttons to onclick functions with 150px scroll step
