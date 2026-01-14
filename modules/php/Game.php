@@ -1607,15 +1607,19 @@ $this->debug($msg);
                 $triangeNumber[$player_id]=0;
             }
 
-            $group=self::getUniqueValueFromDB("
-                        SELECT max(count) FROM (
-                            SELECT count(token_id) as count
-                            FROM token
-                            WHERE token_player =".$player_id."
-                            GROUP BY tileGroup) as tmp");
+            if($this->getGameStateValue('groupBonus') == 1){
+                $group=self::getUniqueValueFromDB("
+                            SELECT max(count) FROM (
+                                SELECT count(token_id) as count
+                                FROM token
+                                WHERE token_player =".$player_id."
+                                GROUP BY tileGroup) as tmp");
 
-            if($group == NULL)
-                $group =0;
+                if($group == NULL)
+                    $group =0;
+            }else{
+                $group=0;
+            }
 
             $this->setStat($group,"Group",$player_id);
 
