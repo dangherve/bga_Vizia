@@ -1128,7 +1128,7 @@ $this->debug($msg);
         //send capture token
         if( count($this->captureToken) != 0)
             $this->notifyAllPlayers('captureToken',
-                clienttranslate("${player_name} capture a token "),
+                clienttranslate('${player_name} capture a token '),
                 [
                     'player_name' => $this->getActivePlayerName(),
                     'token' => $this->captureToken,
