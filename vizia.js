@@ -434,9 +434,14 @@ alert("*** check dom ****")
                     }else{
                         tpl.group=token.group
                     }
-
+try{
                     document.getElementById("place_"+token.x+"x"+token.y).innerHTML += jstpl_token(tpl);
+}catch(err){
+console.log("error place NOT FOUND")
+console.log("x:"+token.x)
+console.log("y:"+token.y)
 
+}
                 }
             }
 
@@ -1359,10 +1364,21 @@ debug(item)
         notif_playedTile: function(args) {
 debug("played")
 debug(args)
+debug(args.places)
+
+            this.addElement(args.tiles);
+            this.addElement(args.places);
+
+            this.playedTile = {};
+            this.playerTile = {};
+            this.tokenSpent = {};
+/*
             if(this.playerId != args.player_id){
+debug("not played")
 
                 this.addElement(args.tiles);
                 this.addElement(args.places);
+
             }else{
                 for (var id in this.playedTile ) {
                     playedTile = $(id);
@@ -1382,6 +1398,7 @@ debug(args)
                 this.playerTile = {};
                 this.tokenSpent = {};
             }
+            */
         },
 
         notif_newToken: function(args) {
@@ -1441,31 +1458,26 @@ console.log(args)
         },
 
         notif_removeToken: function (args){
-        for( i in args.removeToken ){
-            debug($(("token_"+args.removeToken[i])))
-            $(("token_"+args.removeToken[i])).remove();
+            for( i in args.removeToken ){
+                debug($(("token_"+args.removeToken[i])))
+                $(("token_"+args.removeToken[i])).remove();
             }
-    },
+        },
 
         notif_purchased: function (args){
-            if(this.playerId != args.player_id){
-                var placeToAdd = []
-                for( i in args.tileToRemove ){
-                    place=$(args.tileToRemove[i]).parentNode
-                    x = Number(place.id.split("_")[1].split("x")[0]);
-                    y = Number(place.id.split("x")[1]);
+            var placeToAdd = []
+            for( i in args.tileToRemove ){
+                place=$(args.tileToRemove[i]).parentNode
+                x = Number(place.id.split("_")[1].split("x")[0]);
+                y = Number(place.id.split("x")[1]);
 
-                    placeToAdd[i]={ x, y }
-                    place.remove();
+                placeToAdd[i]={ x, y }
+                place.remove();
 
-                    $((args.tokenToRemove[i])).remove();
+                $((args.tokenToRemove[i])).remove();
 
-                }
-                this.addElement(placeToAdd);
-
-            }else{
             }
-
+            this.addElement(placeToAdd);
 
         },
 
