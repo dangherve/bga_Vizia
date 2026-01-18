@@ -59,6 +59,15 @@ define([
                 return rect;
             },
 
+            setLoader(image_progress, logs_progress) {
+                this.inherited(arguments);
+                if (!this.isLoadingComplete && image_progress >= 100) {
+                    this.isLoadingComplete = true;
+                    if (this.onLoadingComplete)
+                        this.onLoadingComplete();
+                }
+            },
+            
             calcCurrentCSSZoom: function(node, cstyle){
                 if (typeof node.currentCSSZoom !== "undefined")
                     return node.currentCSSZoom;
