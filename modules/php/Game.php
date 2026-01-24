@@ -1633,14 +1633,52 @@ $this->debug($msg);
 
 
             if ($this->getGameStateValue('teamPlay') == 0){
-                $prismePoint[$player_id] = $prismeWheel[$player_id]." x 3 = ".$prismeWheel[$player_id]*3;
-                $bicolorPoint[$player_id] = $bicolorWheel[$player_id]." x 2 = ".$bicolorWheel[$player_id]*2;
-                $simplePoint[$player_id] = $simpleWheel[$player_id];
-                $trianglePoint[$player_id] = $triangeNumber[$player_id]." x 2 = ".$triangeNumber[$player_id]*2;
-                $pointsTotal[$player_id]=$calculTotalTmp;
+                $prismePoint[$player_id] = [
+                    "str"   => '<span class="prisme">${prisme}</span> x 3 = <span class="points">${points}</span>',
+                    "args"  => [
+                        'prisme' => $prismeWheel[$player_id],
+                        'points' => $prismeWheel[$player_id]*3,
+                    ]
+                ];
+
+                $bicolorPoint[$player_id] = [
+                    "str"   => '<span class="prisme">${prisme}</span> x 2 = <span class="points">${points}</span>',
+                    "args"  => [
+                        'prisme' => $bicolorWheel[$player_id],
+                        'points' => $bicolorWheel[$player_id]*2,
+                    ]
+                ];
+
+                $simplePoint[$player_id] = [
+                    "str"   => '<span class="points">${points}</span>',
+                    "args"  => [
+                        'points' => $simpleWheel[$player_id]
+                    ]
+                ];
+
+                $trianglePoint[$player_id] = [
+                    "str"   => '<span class="prisme">${prisme}</span> x 2 = <span class="points">${points}</span>',
+                    "args"  => [
+                        'prisme' => $triangeNumber[$player_id],
+                        'points' => $triangeNumber[$player_id]*2,
+                    ]
+                ];
+
+
+                $pointsTotal[$player_id]=[
+                    "str"   => '<span class="points">${calculTotalTmp}</span>',
+                    "args"  => [
+                        'calculTotalTmp' => $calculTotalTmp
+                    ]
+                ];
 
                 if($this->getGameStateValue('groupBonus') == 1){
-                    $pointsGroup[$player_id]=$group;
+                    $pointsGroup[$player_id]=[
+                        "str"   => '<span class="points">${group}</span>',
+                        "args"  => [
+                            'group' => $group
+                        ]
+                    ];
                 }else{
                     $pointsGroup[$player_id]=0;
                 }
@@ -1656,13 +1694,13 @@ $this->debug($msg);
                     $triangeNumber[$indice] = $triangeNumber[$player_id];
                     $totalTeam[$indice] = $calculTotalTmp;
 
-                    $prismePoint[$indice] = "( ".$prismeWheel[$player_id]." + ";
-                    $bicolorPoint[$indice] = "( ".$bicolorWheel[$player_id]." + ";
-                    $simplePoint[$indice] = $simpleWheel[$player_id]." + ";
-                    $trianglePoint[$indice] = "( ".$triangeNumber[$player_id]."  + ";
-                    $pointsTotal[$indice] = $calculTotalTmp." + ";
+                    $prismePoint[$indice] = "( <span class='points'>".$prismeWheel[$player_id]."</span> + ";
+                    $bicolorPoint[$indice] = "( <span class='points'>".$bicolorWheel[$player_id]."</span> + ";
+                    $simplePoint[$indice] = "<span class='points'>".$simpleWheel[$player_id]."</span> + ";
+                    $trianglePoint[$indice] = "( <span class='points'>".$triangeNumber[$player_id]."</span>  + ";
+                    $pointsTotal[$indice] = "<span class='points'>".$calculTotalTmp."</span> + ";
                     if($this->getGameStateValue('groupBonus') == 1){
-                        $pointsGroup[$indice]=$group." + ";
+                        $pointsGroup[$indice]="<span class='points'>".$group."</span> + ";
                         $groupTeam[$indice]=$group;
                     }else{
                         $pointsGroup[$indice]=0;
@@ -1676,14 +1714,18 @@ $this->debug($msg);
                     $triangeNumber[$indice] += $triangeNumber[$player_id];
                     $totalTeam[$indice] += $calculTotalTmp;
 
-                    $prismePoint[$indice] .= $prismeWheel[$player_id]." ) x 3 = ".$prismeWheel[$indice]*3;
-                    $bicolorPoint[$indice] .= $bicolorWheel[$player_id]." ) x 2 = ".$bicolorWheel[$indice]*2;
-                    $simplePoint[$indice] .= $simpleWheel[$player_id]." = ".$simpleWheel[$indice];
-                    $trianglePoint[$indice] .= $triangeNumber[$player_id]." ) x 2 = ".$triangeNumber[$indice]*2;
-                    $pointsTotal[$indice].= $calculTotalTmp." = ".$totalTeam[$indice];
+                    $prismePoint[$indice] .=
+                        "<span class='points'>".$prismeWheel[$player_id]."</span> ) x 3 = <span class='points'>".$prismeWheel[$indice]*3 ."</span>";
+                    $bicolorPoint[$indice] .=
+                        "<span class='points'>".$bicolorWheel[$player_id]."</span> ) x 2 = <span class='points'>".$bicolorWheel[$indice]*2 ."</span>";
+                    $simplePoint[$indice] .=
+                        "<span class='points'>".$simpleWheel[$player_id]."</span> = <span class='points'>".$simpleWheel[$indice]."</span>";
+                    $trianglePoint[$indice] .=
+                        "<span class='points'>".$triangeNumber[$player_id]."</span> ) x 2 = <span class='points'>".$triangeNumber[$indice]*2 ."</span>";
+                    $pointsTotal[$indice].= "<span class='points'>".$calculTotalTmp."</span> = <span class='points'>".$totalTeam[$indice]."</span>";
                     if($this->getGameStateValue('groupBonus') == 1){
                         $groupTeam[$indice]+=$group;
-                        $pointsGroup[$indice].=$group." = ".$groupTeam[$indice];
+                        $pointsGroup[$indice].="<span class='points'>".$group."</span> = <span class='points'>".$groupTeam[$indice]."</span>";
                     }
 
                     self::DbQuery(sprintf(

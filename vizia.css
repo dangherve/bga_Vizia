@@ -317,6 +317,9 @@ TO THINK BETTER IDEA
  border: 10px solid black;
 }
 
+.prisme, .points {
+    font-weight:bold;
+}
 
 .token{
     position: absolute;
