@@ -447,7 +447,7 @@ class Game extends \Bga\GameFramework\Table
             $tokenId=$token["token_id"];
 
             if ($token["token_player"] != null){
-                $tokenPlayerTest="token_player = ".$token["token_player"]. "or token_player is null";
+                $tokenPlayerTest="token_player = ".$token["token_player"]. " or token_player is null";
                 $tokenIdUI=$token["token_id"];
             }else{
                 $tokenPlayerTest="token_player is null";
