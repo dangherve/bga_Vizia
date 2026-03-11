@@ -52,15 +52,6 @@
 
 $machinestates = [
 
-    // The initial state. Please do not modify.
-
-    1 => array(
-        "name" => "gameSetup",
-        "description" => "",
-        "type" => "manager",
-        "action" => "stGameSetup",
-        "transitions" => ["" => 2]
-    ),
 
     // Note: ID=2 => your first state
 
@@ -128,16 +119,6 @@ $machinestates = [
         "action" => "calculateScore",
         "updateGameProgression" => true,
         "transitions" => ["endGame" => 99]
-    ],
-
-    // Final state.
-    // Please do not modify (and do not overload action/args methods).
-    99 => [
-        "name" => "gameEnd",
-        "description" => clienttranslate("End of game"),
-        "type" => "manager",
-        "action" => "stGameEnd",
-        "args" => "argGameEnd"
     ],
 
 ];

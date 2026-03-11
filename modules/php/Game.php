@@ -18,8 +18,6 @@ declare(strict_types=1);
 
 namespace Bga\Games\vizia;
 
-require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
-
 
 //first wheel  position
 const FIRST_WHEEL = [
@@ -31,7 +29,7 @@ const FIRST_WHEEL = [
     5 => ['x' => 2 , 'y' => 0 ],
 ];
 
-class Game extends \Table
+class Game extends \Bga\GameFramework\Table
 {
     /**
      * Your global variables labels:
@@ -254,14 +252,20 @@ class Game extends \Table
                 FROM tile WHERE board_tile_x = ".($x-1)." and board_tile_y = ".$y);
 
         if(!$this->CheckColor($TileCurentColor,$TileLeftColor)){
-            throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement incorrect left color"), true);
+            throw new \BgaUserException(
+                clienttranslate("Incorrect tile ${x} ${y} placement incorrect left color",
+                    array ( 'x' => $x, 'y' =>$y)),
+                 true);
+
         }
         $TileRightColor = $this->getUniqueValueFromDB("SELECT tile_color
                 FROM tile WHERE board_tile_x = ".($x+1)." and board_tile_y = ".$y);
 
         if(!$this->CheckColor($TileCurentColor,$TileRightColor))
-            throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement incorrect right color"), true);
-
+            throw new \BgaUserException(
+                clienttranslate("Incorrect tile ${x} ${y} placement incorrect right color",
+                    array ( 'x' => $x, 'y' =>$y)),
+                 true);
 
         if( ( $x + $y ) %2 == 0){
             $TileUpColor=null;
@@ -270,7 +274,10 @@ class Game extends \Table
 
 
             if(!$this->CheckColor($TileCurentColor,$TileDownColor)){
-                throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement incorrect down color"), true);
+                throw new \BgaUserException(
+                    clienttranslate("Incorrect tile ${x} ${y} placement incorrect down color",
+                        array ( 'x' => $x, 'y' =>$y)),
+                 true);
             }
         }else{
             $TileDownColor=null;
@@ -278,7 +285,10 @@ class Game extends \Table
                 FROM tile WHERE board_tile_x = ".$x." and board_tile_y = ".($y-1));
 
             if(!$this->CheckColor($TileCurentColor,$TileUpColor))
-                throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement incorrect up color"), true);
+                throw new \BgaUserException(
+                    clienttranslate("Incorrect tile ${x} ${y} placement incorrect up color",
+                        array ( 'x' => $x, 'y' =>$y)),
+                 true);
 
         }
 
@@ -288,8 +298,11 @@ class Game extends \Table
         if ( ($TileLeftColor == null) &&
              ($TileRightColor == null) &&
              ($TileDownColor == null) && ($TileUpColor == null)){
+                throw new \BgaUserException(
+                    clienttranslate("Incorrect tile ${x} ${y} placement no adjacent tile",
+                        array ( 'x' => $x, 'y' =>$y)),
+                 true);
 
-            throw new \BgaUserException(self::_("Incorrect tile ".$x." ".$y." placement no adjacent tile"), true);
         }
 
     }
@@ -631,7 +644,7 @@ class Game extends \Table
                 FROM tile
                 WHERE tile_location = 'Board'"));
 
-        $tiles = self::getCollectionFromDb("SELECT  tile_color
+        $tiles = self::getCollectionFromDb("SELECT tile_color
             FROM tile
             WHERE tile_location = 'common' OR
             (tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId().")
@@ -899,11 +912,11 @@ $this->dump("result",$result);
         $nbToken=sizeof($list_token);
 
         if($nbToken>$tokenToRemove){
-            throw new \BgaUserException(self::_("Unexpected Error: you did not remove enought token"), true);
+            throw new \BgaUserException(clienttranslate("Unexpected Error: you did not remove enought token"), true);
         }
 
         if($nbToken<$tokenToRemove){
-            throw new \BgaUserException(self::_("Unexpected Error: you removed too much token"), true);
+            throw new \BgaUserException(clienttranslate("Unexpected Error: you removed too much token"), true);
         }
 
         //explode token use remove last semi colon
@@ -971,14 +984,14 @@ $this->debug($msg);
     {
 
         if ($this->getActivePlayerId() !== $this->getCurrentPlayerId()) {
-            throw new \BgaUserException(self::_("Unexpected Error: you are not the active player"), true);
+            throw new \BgaUserException(clienttranslate("Unexpected Error: you are not the active player"), true);
         }
 
         $message='${player_name} play ';
 
         //need to play at leas one tile
         if(strlen($tilePlayed)==0){
-                throw new \BgaUserException(self::_("You need to play at least one tile"), true);
+                throw new \BgaUserException(clienttranslate("You need to play at least one tile"), true);
         }
 
         //purchase tile
@@ -986,7 +999,7 @@ $this->debug($msg);
 
             //check if game allow it
             if (self::getGameStateValue('purchase') ==0 ){
-                throw new \BgaUserException(self::_("purchased tile is not permited for this game"), true);
+                throw new \BgaUserException(clienttranslate("purchased tile is not permited for this game"), true);
             }
 
             //explode token use remove last semi colon
@@ -1058,7 +1071,7 @@ $this->debug($msg);
                 $tileId = explode('_',$tile)[1];
 
                 if(array_key_exists($tileId,$tiles)){
-                    throw new \BgaUserException(self::_("error tile both in player and played"), true);
+                    throw new \BgaUserException(clienttranslate("error tile both in player and played"), true);
                 }
 
                 $sql="UPDATE tile SET tile_location = 'Player',
@@ -1683,7 +1696,7 @@ $this->debug($msg);
                     $pointsGroup[$player_id]=0;
                 }
 
-                self::DbQuery(sprintf("UPDATE player SET player_score = %d WHERE player_id = '%s'", $calculTotalTmp, $player_id));
+                $this->bga->playerScore->set($player_id, $calculTotalTmp);
 
             }else{
                 $indice=$i%2+1;
@@ -1728,12 +1741,8 @@ $this->debug($msg);
                         $pointsGroup[$indice].="<span class='points'>".$group."</span> = <span class='points'>".$groupTeam[$indice]."</span>";
                     }
 
-                    self::DbQuery(sprintf(
-                        "UPDATE player SET player_score = %d WHERE player_id = '%s' or player_id = '%s'",
-                         $totalTeam[$indice],
-                         $playerTeam[$indice],
-                         $player_id));
-
+                    $this->bga->playerScore->set($player_id, $totalTeam[$indice]);
+                    $this->bga->playerScore->set($playerTeam[$indice], $totalTeam[$indice]);
                 }
                 $i++;
             }
@@ -1848,16 +1857,6 @@ if(!$debug)
     }
 
     /**
-     * Returns the game name.
-     *
-     * IMPORTANT: Please do not modify.
-     */
-    protected function getGameName()
-    {
-        return "vizia";
-    }
-
-    /**
      * This method is called only once, when a new game is launched. In this method, you must setup the game
      *  according to the game rules, so that the game is ready to be played.
      */
@@ -1908,6 +1907,8 @@ if(!$debug)
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();
+
+        return 2;
     }
 
     /**
@@ -1972,7 +1973,7 @@ if(!$debug)
                 FROM token
                 WHERE board_token_x = ".$x." and board_token_y = ".$y);
 
-        $token = mysql_fetch_assoc( $dbres );
+        $token = DbQuery( $dbres );
         $res=$this->checkToken($token);
 
         $this->CheckAdjacentToken($token);

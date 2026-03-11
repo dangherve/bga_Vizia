@@ -629,7 +629,7 @@ console.log("y:"+token.y)
             }
         },
 
-        playerToken: function(token) {
+        playerToken: function(gamedatas) {
 
             tpl = {};
 
@@ -641,12 +641,15 @@ console.log("y:"+token.y)
             tpl.group=""
             for( player_id in this.players )
             {
-                var player_board_div = $('player_board_'+player_id);
-                dojo.place('<div id="tokenPlayer_'+player_id+'" class="token_stock"></div><br class="clear" />', player_board_div );
+                var player = gamedatas.players[player_id];
+
+                const html = `<div id="tokenPlayer_${player.id}" class="token_stock"></div><br class="clear" />`
+
+                this.bga.playerPanels.getElement(player_id).insertAdjacentHTML('beforeend', html);
 
                 var player_token_div = $('tokenPlayer_'+player_id);
 
-                for( i = 0; i< token[player_id]; i++ )
+                for( i = 0; i< gamedatas.tokenPlayer[player_id]; i++ )
                 {
                     tpl.y=i
                     tpl.color="#"+this.players[player_id].color ;
@@ -688,7 +691,7 @@ console.log("y:"+token.y)
 
             this.commonTile(gamedatas.common);
             this.initiatePlayer(gamedatas.hand);
-            this.playerToken(gamedatas.tokenPlayer);
+            this.playerToken(gamedatas);
 
             this.addElement(gamedatas.places);
             this.addElement(gamedatas.tiles);
