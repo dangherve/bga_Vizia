@@ -465,6 +465,18 @@ console.log("y:"+token.y)
 
         initiatePlayer: function (hand){
             if( ! this.isSpectator ){
+
+                element = document.getElementById('hand0');
+                if (element) {
+                  element.remove();
+                }
+
+                element = document.getElementById('hand1');
+                if (element) {
+                  element.remove();
+                }
+
+
                 var hand = hand;
                 dojo.place(`
                 <div id="hand0" ></div>
@@ -1491,6 +1503,11 @@ console.log(args)
             this.tileRemain(args.tilesRemain);
         },
 
+        notif_refreshTile: function(args) {
+
+            this.initiatePlayer(args.hand)
+            this.refreshHandler();
+        },
 
         notif_game_end_trigger: function(notif) {
 

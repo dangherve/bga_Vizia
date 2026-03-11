@@ -1106,6 +1106,21 @@ $this->debug($msg);
                 );
         }
 
+        // RESEND private TILES for history
+
+        $result["hand"] = self::getObjectListFromDB("SELECT tile_id id, tile_color color
+                FROM tile
+                WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
+
+        $this->notifyPlayer( $this->getActivePlayerId() ,
+            "refreshTile",
+            "",
+            array(
+                "player_id" => $this->getActivePlayerId(),
+                "hand" => $result["hand"],
+                )
+        );
+
         //send new tiles and places
         $this->notifyAllPlayers('playedTile',
             clienttranslate($message),
