@@ -447,7 +447,7 @@ class Game extends \Bga\GameFramework\Table
             $tokenId=$token["token_id"];
 
             if ($token["token_player"] != null){
-                $tokenPlayerTest="token_player = ".$token["token_player"];
+                $tokenPlayerTest="token_player = ".$token["token_player"]. "or token_player is null";
                 $tokenIdUI=$token["token_id"];
             }else{
                 $tokenPlayerTest="token_player is null";
@@ -2042,6 +2042,24 @@ if(!$debug)
         );
 
     }
+
+    public function debug_tokenCapture(int $x, int $y) {
+         $this->CheckTokenCapture($x, $y);
+        //send new token
+        if( count($this->token) != 0)
+
+            $this->notifyAllPlayers('captureToken',
+                clienttranslate('${player_name} capture a token '),
+                [
+                    'player_name' => $this->getActivePlayerName(),
+                    'token' => $this->captureToken,
+                ]
+            );
+
+
+
+    }
+
     public function debug_forceChangeTile(){
         $this->setGameStateValue('communalTiles',6);
 
