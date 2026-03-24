@@ -1096,7 +1096,7 @@ $this->debug($msg);
         //send removed token and tile
         if(strlen($tokenSpent)!=0){
             $this->notifyAllPlayers('purchased',
-                clienttranslate("${player_name} bought tile "),
+                clienttranslate('${player_name} bought tile '),
                 [
                     'player_name' => $this->getActivePlayerName(),
                     'player_id' => $this->getActivePlayerId(),

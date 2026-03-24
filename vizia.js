@@ -1480,20 +1480,31 @@ console.log(args)
         },
 
         notif_purchased: function (args){
-            var placeToAdd = []
-            for( i in args.tileToRemove ){
-                place=$(args.tileToRemove[i]).parentNode
-                x = Number(place.id.split("_")[1].split("x")[0]);
-                y = Number(place.id.split("x")[1]);
 
-                placeToAdd[i]={ x, y }
-                place.remove();
+            if(this.playerId != args.player_id){
+                var placeToAdd = []
 
-                $((args.tokenToRemove[i])).remove();
+                for( i in args.tileToRemove ){
+                    place=$(args.tileToRemove[i]).parentNode
+                    x = Number(place.id.split("_")[1].split("x")[0]);
+                    y = Number(place.id.split("x")[1]);
 
+                    color=$(args.tileToRemove[i]).getElementsByClassName("colorBlind")[0].innerHTML
+                    var possibleColor =[]
+                    possibleColor[0]=String((Number(color)+1)%6);
+                    possibleColor[1]=String((Number(color)+5)%6);
+                    placeToAdd[i]={ x, y, possibleColor }
+                    element =  document.getElementById(place.id)
+
+                    if (element != null){
+                        element.remove();
+                        element =  document.getElementById($((args.tokenToRemove[i])).id)
+                        element.remove();
+                    }
+
+                }
+                this.addElement(placeToAdd);
             }
-            this.addElement(placeToAdd);
-
         },
 
         notif_nextPlayer: function(args) {
