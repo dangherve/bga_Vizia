@@ -949,9 +949,6 @@ $this->dump("result",$result);
         $this->gamestate->nextState("nextPlayer");
     }
 
- public function actForcePass(): void{
-        $this->gamestate->nextState("nextPlayer");
-}
 
 public function actDebugCheckTile(string $x, string $y): void
 {
@@ -993,7 +990,7 @@ $this->debug($msg);
 
         $message='${player_name} play ';
 
-        //need to play at leas one tile
+        //need to play at least one tile
         if(strlen($tilePlayed)==0){
                 throw new \BgaUserException(clienttranslate("You need to play at least one tile"), true);
         }

@@ -883,7 +883,6 @@ console.log("y:"+token.y)
                  case 'playerTurn':
                     this.statusBar.addActionButton(_('Confirm'), () => this.onPlay(), { color: 'primary' });
                     this.statusBar.addActionButton(_('Reset '), () => this.onReset(), { color: 'red' });
-//                    this.statusBar.addActionButton(_('CAN NOT PLAY '), () => this.canNotPlay(), { color: 'red' });
 
                     this.refreshHandler();
                     break;
@@ -893,13 +892,8 @@ console.log("y:"+token.y)
                     this.statusBar.addActionButton(_('Reset '), () => this.onReset(), { color: 'red' });
                     $("nbToken").innerHTML=this.nbToken;
 
-
-                    this.statusBar.addActionButton(_('SKIP '), () => this.bgaPerformAction('actForcePass', {}), { color: 'red' });
-
-
                     this.disconnectAll();
                     this.connectClass("selectableToken" , 'onclick', 'selectTokenToRemove');
-                //this.connectClass(this.playerId , 'onclick', 'onAction');
 
                     break;
                 }
@@ -917,9 +911,6 @@ console.log("y:"+token.y)
             script.
 
         */
-
-
-
 
         selectPlace: function( place )
         {
@@ -1307,7 +1298,6 @@ debug(item)
 
         // Example:
 
-
         onReset: function (){
              location.reload();
         },
@@ -1416,7 +1406,6 @@ debug("not played")
                     playedTilePolygon = playedTileSvg.getElementsByTagName("polygon")[0]
                     playedTilePolygon.className.baseVal="handTile"
                 }
-
 
                 this.playedTile = {};
                 this.playerTile = {};
