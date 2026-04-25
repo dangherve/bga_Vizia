@@ -493,6 +493,10 @@ class Game extends \Bga\GameFramework\Table
                     $this->incStat(1,"TokenCaptured",$newPlayer);
 
                     static::DbQuery($sql);
+
+                    //check recursive capture
+                    $this->CheckTokensCapture($x,$y);
+
                 }
 
             }
