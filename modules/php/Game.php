@@ -1819,7 +1819,7 @@ if(!$debug)
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
         $result["players"] = $this->getCollectionFromDb(
-            "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
+            "SELECT `player_id` `id`, `player_score` `score` , `player_no`  `pno` FROM `player`"
         );
 
         $result["hand"] = self::getObjectListFromDB("SELECT tile_id id, tile_color color

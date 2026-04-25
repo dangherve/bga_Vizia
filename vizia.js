@@ -651,13 +651,23 @@ console.log("y:"+token.y)
 
             tpl.class=""
             tpl.group=""
-            for( player_id in this.players )
+            for (var player_id in gamedatas.players)
             {
-                var player = gamedatas.players[player_id];
 
-                const html = `<div id="tokenPlayer_${player.id}" class="token_stock"></div><br class="clear" />`
+                var player = gamedatas.players[player_id];
+                var html=""
+
+                if (player.pno == 1) {
+                    html +="<div id='starterToken'></div>"
+                }
+
+                html += `<div id="tokenPlayer_${player.id}" class="token_stock"></div><br class="clear" />`
 
                 this.bga.playerPanels.getElement(player_id).insertAdjacentHTML('beforeend', html);
+
+                if (player.pno == 1) {
+                    this.bga.gameui.addTooltip( 'starterToken', _('First Player'), '' );
+                }
 
                 var player_token_div = $('tokenPlayer_'+player_id);
 

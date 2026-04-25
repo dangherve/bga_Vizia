@@ -329,3 +329,11 @@ TO THINK BETTER IDEA
 .map{
     position: absolute;
 }
+
+#starterToken{
+    background-image: url('img/svg/hexagon.svg');
+    height: 60px;
+    width: 60px;
+    background-size: 100% auto;
+}
+
