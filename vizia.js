@@ -1014,8 +1014,7 @@ alert("delete common -> hand")
 
                 }else if  ( (playedTilePolygon.className.baseVal.match("boardTile")) &&
                             (placePolygon.className.baseVal.match("commonPlace"))){
-
-                    if(dojo.hasClass(playedTile,"purchasedTile")){
+                    if(playedTilePolygon.className.baseVal.match("purchasedTile")){
                         this.showMessage(_('purchased tile need to stay on board'), 'error');
                         return
                     }
@@ -1029,7 +1028,7 @@ alert("delete common -> hand")
                 }else if  ( (playedTilePolygon.className.baseVal.match("boardTile")) &&
                         (placePolygon.className.baseVal.match("handPlace"))){
 
-                    if(dojo.hasClass(playedTile,"purchasedTile")){
+                    if(playedTilePolygon.className.baseVal.match("purchasedTile")){
                         this.showMessage(_('purchased tile need to stay on board'), 'error');
                         return
                     }
@@ -1234,7 +1233,7 @@ debug("selectTile Color:"+color)
 
                 svg = tile.getElementsByTagName("svg")[0]
                 polygon= svg.getElementsByTagName("polygon")[0]
-                polygon.className.baseVal="playedTile boardTile"//purchasedTile
+                polygon.className.baseVal="playedTile boardTile purchasedTile"
 
 dojo.query(tile).addClass("currentTile");
 

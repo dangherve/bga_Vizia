@@ -999,6 +999,7 @@ $this->debug($msg);
         }
 
         //purchase tile
+        //NO VERIFICATION FOR purchase tile to go to reserve in php done in js might be done to be more reliable
         if(strlen($tokenSpent)!=0){
 
             //check if game allow it
