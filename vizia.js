@@ -73,6 +73,7 @@ define([
     "ebg/core/gamegui",
     "ebg/counter",
     "./modules/scrollmapWithZoom",
+    "./modules/animation",
     "./modules/konami"
 //    "ebg/scrollmap"
 ],
@@ -172,6 +173,13 @@ function (dojo, declare) {
         */
 
 
+        makeColoredSVG: function(color) {
+            return `
+            <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <polygon fill="${color}" points="100,100 180.0,100.0 140.0,169.282" stroke="black" stroke-width="1" />
+            </svg>`;
+        },
+
         initiateTemplate: function(){
             // Example to add a div on the game area
             document.getElementById('game_play_area').insertAdjacentHTML('beforeend', `
@@ -226,8 +234,20 @@ function (dojo, declare) {
             `);
 
             this.easterEgg = new KonamiCode(() => {
-                isDebug=true
-                this.debugMenu()
+                new ImageAnimation({
+                    images: [
+                        this.makeColoredSVG(this.tileColor[this.colorSection][0]),
+                        this.makeColoredSVG(this.tileColor[this.colorSection][1]),
+                        this.makeColoredSVG(this.tileColor[this.colorSection][2]),
+                        this.makeColoredSVG(this.tileColor[this.colorSection][3]),
+                        this.makeColoredSVG(this.tileColor[this.colorSection][4]),
+                        this.makeColoredSVG(this.tileColor[this.colorSection][5])
+                    ],
+                    mode: "explosion",
+                    duration: 10000,
+                    count: 1000
+                }).start();
+
             });
 
             this.scrollmap = new ebg.scrollmapWithZoom();
@@ -237,7 +257,7 @@ function (dojo, declare) {
             this.scrollmap.btnsDivOnMap = false;
             this.scrollmap.btnsDivPositionOutsideMap = ebg.scrollmapWithZoom.btnsDivPositionE.Left
 
-            this.scrollmap.bIncrHeightBtnVisible=false;
+            this.scrollmap.bIncrHeightBtnVisible=true;
             this.scrollmap.bInfoBtnVisible=true;
 
             // Make map scrollable
@@ -667,6 +687,31 @@ console.log("y:"+token.y)
 
                 if (player.pno == 1) {
                     this.bga.gameui.addTooltip( 'starterToken', _('First Player'), '' );
+
+                    let clicks = 0;
+                    let timer = null;
+                    const requiredClicks = 5;
+                    const delay = 2000;
+
+                    document.getElementById("starterToken").addEventListener("click", () => {
+                        clicks++;
+
+                        clearTimeout(timer);
+
+                        timer = setTimeout(() => {
+                            clicks = 0; // reset if too slow
+                        }, delay);
+
+                        if (clicks >= requiredClicks) {
+
+                            if (!isDebug) {
+                                this.debugMenu()
+                                isDebug=true
+                            }
+                            clearTimeout(timer);
+                        }
+                    });
+
                 }
 
                 var player_token_div = $('tokenPlayer_'+player_id);
