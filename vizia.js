@@ -830,6 +830,16 @@ console.log("y:"+token.y)
                         args.tilesTakenUI= dojo.string.substitute("${tilesTakenUI}", {'tilesTakenUI' : text});
                     }
 
+                    if (args.privateTile1 !== undefined) {
+                        text='<strong style="color:'+this.tileColor[this.colorSection][args.privateTile1.id]+'">'+args.privateTile1.text+" tile </strong>"
+                        args.privateTile1= dojo.string.substitute("${privateTile1}", {'privateTile1' : text});
+                    }
+
+                    if (args.privateTile2 !== undefined) {
+                        text='<strong style="color:'+this.tileColor[this.colorSection][args.privateTile2.id]+'">'+args.privateTile2.text+" tile </strong>"
+                        args.privateTile2= dojo.string.substitute("${privateTile2}", {'privateTile2' : text});
+                    }
+
                 }
             } catch (e) {
                 console.error(log,args,"Exception thrown", e.stack);

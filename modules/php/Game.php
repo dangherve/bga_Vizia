@@ -1358,17 +1358,19 @@ $this->debug($msg);
                 FROM tile
                 WHERE tile_location = 'Player' and tile_location_arg = ".$this->getActivePlayerId());
 
+            $privateTile1=null;
+            $privateTile2=null;
+
             if (sizeof($privateTile) == 0){
                 $message.=" and do no not have any private tile";
             }elseif(sizeof($privateTile) == 1){
-                $message.=" and has a";
-                $message.=$this->translatedColors[$privateTile[0]['color']]." tile ";
-                $message.=" in his personal tile";
+                $message.=' and has a ${privateTile1} in his personal tile';
+                $privateTile1=['id' => $privateTile[0]['color'], 'text' => $this->translatedColors[$privateTile[0]['color']] ];
             }elseif(sizeof($privateTile) == 2){
-                $message.=" and has a ";
-                $message.=$this->translatedColors[$privateTile[0]['color']]." tile and a ";
-                $message.=$this->translatedColors[$privateTile[1]['color']]." tile";
+                $message.=' and has a ${privateTile1} and a ${privateTile2}';
                 $message.=" in his personal tile";
+                $privateTile1=['id' => $privateTile[0]['color'], 'text' => $this->translatedColors[$privateTile[0]['color']] ];
+                $privateTile2=['id' => $privateTile[1]['color'], 'text' => $this->translatedColors[$privateTile[1]['color']] ];
             }else{
                 //error
                 $this->dump( "More than 2 private tile should not occured", $privateTile);
@@ -1377,6 +1379,8 @@ $this->debug($msg);
             //send new tiles and places
             $this->notifyAllPlayers('canNotPlay',clienttranslate($message),
                 [
+                    'privateTile1' => $privateTile1,
+                    'privateTile2' => $privateTile2,
                 ]
             );
 
